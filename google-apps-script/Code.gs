@@ -43,16 +43,28 @@ function doGet(e) {
   try {
     switch (action) {
       case 'getPosts':
-        result = { success: true, data: getRowsAsObjects('Posts', e.parameter.clientId) };
+        result = { success: true, data: getPostsForRequest(e.parameter) };
         break;
       case 'getClients':
-        result = { success: true, data: getRowsAsObjects('Clients') };
+        result = { success: true, data: getClientsForRequest(e.parameter) };
         break;
       case 'getUsers':
-        result = { success: true, data: getRowsAsObjects('Users') };
+        result = {
+          success: true,
+          data: getRowsAsObjects('Users').map(u => ({
+            id: u.id,
+            username: u.username,
+            role: u.role,
+            clientId: u.clientId || '',
+            name: u.name || u.username
+          }))
+        };
         break;
       case 'getAssignments':
         result = { success: true, data: getRowsAsObjects('Assignments') };
+        break;
+      case 'getStats':
+        result = { success: true, data: getMonthlyStats(e.parameter.clientId, e.parameter.yearMonth) };
         break;
       default:
         result = { success: true, message: 'API Calendario de Post activa' };
@@ -75,6 +87,9 @@ function doPost(e) {
     const action = payload.action;
 
     switch (action) {
+      case 'login':
+        result = loginUser(payload.data);
+        break;
       case 'savePost':
         result = savePost(payload.data);
         break;
@@ -293,6 +308,103 @@ function deleteAssignment(assignmentId) {
     }
   }
   return { success: false, message: 'Asignación no encontrada' };
+}
+
+function loginUser(credentials) {
+  if (!credentials || !credentials.username) {
+    return { success: false, message: 'Usuario y contraseña requeridos' };
+  }
+  const users = getRowsAsObjects('Users');
+  const user = users.find(
+    u => String(u.username) === String(credentials.username) && String(u.password) === String(credentials.password)
+  );
+  if (!user) {
+    return { success: false, message: 'Credenciales incorrectas' };
+  }
+  return {
+    success: true,
+    data: {
+      user: {
+        id: user.id,
+        username: user.username,
+        role: user.role,
+        clientId: user.clientId || '',
+        name: user.name || user.username
+      }
+    }
+  };
+}
+
+function getClientsForRequest(params) {
+  const clients = getRowsAsObjects('Clients');
+  const role = params.role || '';
+  const userId = params.userId || '';
+  const clientId = params.clientId || '';
+
+  if (role === 'client' && clientId) {
+    return clients.filter(c => String(c.id) === String(clientId));
+  }
+  if (role === 'operator' && userId) {
+    const assignments = getRowsAsObjects('Assignments');
+    const allowed = {};
+    assignments.forEach(a => {
+      if (String(a.userId) === String(userId)) allowed[String(a.clientId)] = true;
+    });
+    return clients.filter(c => Boolean(allowed[String(c.id)]));
+  }
+  return clients;
+}
+
+function getPostsForRequest(params) {
+  const role = params.role || '';
+  const userId = params.userId || '';
+  const filterClientId = params.clientId || null;
+  let posts = getRowsAsObjects('Posts', filterClientId);
+
+  if (role === 'operator' && userId) {
+    const assignments = getRowsAsObjects('Assignments');
+    const allowed = {};
+    assignments.forEach(a => {
+      if (String(a.userId) === String(userId)) allowed[String(a.clientId)] = true;
+    });
+    posts = posts.filter(p => Boolean(allowed[String(p.clientId)]));
+  }
+
+  return posts.map(post => {
+    let parsedMedia = [];
+    try {
+      parsedMedia = typeof post.mediaUrls === 'string' ? JSON.parse(post.mediaUrls) : (post.mediaUrls || []);
+    } catch (err) {
+      parsedMedia = post.mediaUrls ? [post.mediaUrls] : [];
+    }
+    post.mediaUrls = parsedMedia;
+    return post;
+  });
+}
+
+function getMonthlyStats(clientId, yearMonth) {
+  const clients = getRowsAsObjects('Clients');
+  const client = clients.find(c => String(c.id) === String(clientId));
+  const target = client ? Number(client.monthlyTarget || 0) : 0;
+
+  const ym = yearMonth || new Date().toISOString().slice(0, 7);
+  const posts = getRowsAsObjects('Posts', clientId);
+  const monthPosts = posts.filter(p => p.scheduledDate && String(p.scheduledDate).indexOf(ym) === 0);
+
+  const approvedCount = monthPosts.filter(p => p.status === 'approved').length;
+  const pendingCount = monthPosts.filter(p => p.status === 'pending').length;
+  const rejectedCount = monthPosts.filter(p => p.status === 'rejected').length;
+  const totalScheduled = monthPosts.length;
+  const remainingPosts = Math.max(0, target - (approvedCount + pendingCount));
+
+  return {
+    monthlyTarget: target,
+    totalScheduled: totalScheduled,
+    approvedCount: approvedCount,
+    pendingCount: pendingCount,
+    rejectedCount: rejectedCount,
+    remainingPosts: remainingPosts
+  };
 }
 
 function updatePost(post) {

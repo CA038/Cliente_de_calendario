@@ -5,26 +5,21 @@
 ---
 
 ## 1. Resumen General
-Sistema de gestión y aprobación de publicaciones para redes sociales con roles diferenciados, conectado a **Google Sheets en tiempo real** (mediante Google Apps Script Web App), diseño dashboard con **menú lateral (sidebar)** responsivo, autenticación con **JWT + hash scrypt**, respaldado en **GitHub** y desplegado en **Vercel**.
+Sistema de gestión y aprobación de publicaciones para redes sociales con roles diferenciados, alojado como aplicación estática en **GitHub Pages** y conectado directamente a **Google Sheets en tiempo real** mediante **Google Apps Script Web App** (sin servidor Node.js intermedio ni Vercel).
 
 ---
 
-## 2. Repositorio Remoto, Despliegue y Variables de Entorno
+## 2. Repositorio y Despliegue (GitHub Pages)
 - **GitHub:** [https://github.com/CA038/Cliente_de_calendario](https://github.com/CA038/Cliente_de_calendario)
-- **Vercel URL:** [https://calendario-de-post.vercel.app](https://calendario-de-post.vercel.app)
 - **Rama principal:** `main`
-- **Frontend:** Estático puro en raíz (`index.html`, `css/`, `js/`), servido por Vercel Edge CDN.
-- **Backend Serverless:** Manejado en `api/[...path].js` y `api/index.js` reutilizando `backend/src/app.js`.
-- **Variables de Entorno Requeridas en Vercel / `.env`:**
-  - `GOOGLE_SCRIPT_WEBAPP_URL`: URL de implementación del Web App de Google Apps Script.
-  - `JWT_SECRET`: Clave secreta para firmar y verificar tokens de sesión.
+- **Frontend:** Estático puro en raíz (`index.html`, `css/`, `js/`), listo para servir directamente desde GitHub Pages (raíz `/`).
+- **Conexión a Google Sheets:** Configurada en `js/config.js` (`CONFIG.GOOGLE_SCRIPT_URL`) comunicándose con `google-apps-script/Code.gs`.
 
 ---
 
 ## 3. Funcionalidades Implementadas
-- [x] **Seguridad y Autenticación (JWT + scrypt):**
-  - Login mediante JWT (`Authorization: Bearer <token>`) sin fallback inseguro.
-  - Contraseñas hasheadas con `scrypt` + salt en `backend/src/utils/security.js` (con compatibilidad transitoria para contraseñas legadas en Sheets).
+- [x] **Autenticación y Roles:**
+  - Login directo contra la hoja `Users` de Google Sheets (`superadmin`, `operator`, `client`).
   - Accesos demo visibles únicamente en entorno local (`localhost` / `127.0.0.1` / `file:`).
 - [x] **Gestión de Roles y Asignaciones Reales:**
   - **Superusuario (`superadmin`):** Control total de clientes, usuarios, metas, asignaciones y publicaciones.
@@ -32,7 +27,7 @@ Sistema de gestión y aprobación de publicaciones para redes sociales con roles
   - **Cliente (`client`):** Acceso exclusivo a su propio calendario para ver, aprobar o rechazar publicaciones.
   - **Pestaña Asignar Tareas:** Formulario funcional para asignar y quitar relaciones Operario ↔ Cliente con notas de tarea.
 - [x] **CRUD Completo de Posts y Calendario Multimedia:**
-  - Crear, ver detalle, **editar** (reenvía a `pending` y limpia rechazo previo) y **eliminar** publicaciones (`PUT` y `DELETE /api/posts/:id`).
+  - Crear, ver detalle, **editar** (reenvía a `pending` y limpia rechazo previo) y **eliminar** publicaciones.
   - Normalización de `scheduledDate` en `Code.gs` como texto `YYYY-MM-DDTHH:mm`.
 - [x] **Flujo de Aprobación y Meta Mensual:**
   - Botones de Aprobado / Rechazado con motivo obligatorio.

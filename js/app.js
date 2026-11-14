@@ -13,8 +13,7 @@ function initApp() {
   setupEventListeners();
 
   const user = Auth.getCurrentUser();
-  const token = Auth.getToken();
-  if (user && token) {
+  if (user) {
     showAppScreen();
   } else {
     showLoginScreen();
@@ -217,8 +216,10 @@ async function handleLogin(e) {
 
   try {
     const res = await API.login(userVal, passVal);
-    if (res.success && res.data && res.data.user && res.data.token) {
-      Auth.setSession(res.data.user, res.data.token);
+    if (res.success && res.data) {
+      const loggedUser = res.data.user || res.data;
+      const token = res.data.token || '';
+      Auth.setSession(loggedUser, token);
       showAppScreen();
     } else {
       errorBanner.textContent = res.message || 'Usuario o contraseña incorrectos';

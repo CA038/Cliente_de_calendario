@@ -1,116 +1,110 @@
-// Cliente API para comunicarse con el Backend
-const isLocalCustomPort = window.location.hostname === 'localhost' && window.location.port !== '3001';
-const API_BASE_URL = (window.location.protocol === 'file:' || isLocalCustomPort)
-  ? 'http://localhost:3001'
-  : '';
-
+// Cliente API directo a Google Apps Script (compatible con GitHub Pages sin servidor)
 const API = {
-  getAuthHeaders() {
-    const token = Auth.getToken();
-    return token ? { Authorization: `Bearer ${token}` } : {};
+  getScriptUrl() {
+    return (typeof CONFIG !== 'undefined' && CONFIG.GOOGLE_SCRIPT_URL) ? CONFIG.GOOGLE_SCRIPT_URL : '';
   },
 
-  async request(path, options = {}) {
-    const headers = {
-      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
-      ...this.getAuthHeaders(),
-      ...(options.headers || {})
-    };
-
-    const res = await fetch(`${API_BASE_URL}${path}`, { ...options, headers });
-    if (res.status === 401 && path !== '/api/auth/login') {
-      Auth.logout();
-      return { success: false, message: 'Sesión expirada' };
+  async gasGet(action, params = {}) {
+    const baseUrl = this.getScriptUrl();
+    if (!baseUrl) {
+      return { success: false, message: 'Falta configurar GOOGLE_SCRIPT_URL en js/config.js' };
     }
+
+    const url = new URL(baseUrl);
+    url.searchParams.append('action', action);
+    Object.entries(params).forEach(([key, val]) => {
+      if (val !== undefined && val !== null && val !== '') {
+        url.searchParams.append(key, val);
+      }
+    });
+
+    const res = await fetch(url.toString());
+    return await res.json();
+  },
+
+  async gasPost(action, data = {}) {
+    const baseUrl = this.getScriptUrl();
+    if (!baseUrl) {
+      return { success: false, message: 'Falta configurar GOOGLE_SCRIPT_URL en js/config.js' };
+    }
+
+    // Se usa text/plain para evitar preflight CORS OPTIONS que Google Apps Script no soporta
+    const res = await fetch(baseUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action, data })
+    });
     return await res.json();
   },
 
   async login(username, password) {
-    return await this.request('/api/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ username, password })
-    });
+    return await this.gasPost('login', { username, password });
   },
 
   async getPosts(clientId = null) {
-    const query = clientId ? `?clientId=${clientId}` : '';
-    return await this.request(`/api/posts${query}`);
+    const user = Auth.getCurrentUser() || {};
+    const effectiveClient = user.role === 'client' ? user.clientId : clientId;
+    return await this.gasGet('getPosts', {
+      clientId: effectiveClient,
+      role: user.role,
+      userId: user.id
+    });
   },
 
   async createPost(postData) {
-    return await this.request('/api/posts', {
-      method: 'POST',
-      body: JSON.stringify(postData)
-    });
+    return await this.gasPost('savePost', postData);
   },
 
   async updatePost(postId, postData) {
-    return await this.request(`/api/posts/${postId}`, {
-      method: 'PUT',
-      body: JSON.stringify(postData)
-    });
+    return await this.gasPost('updatePost', { ...postData, id: postId, status: 'pending' });
   },
 
   async deletePost(postId) {
-    return await this.request(`/api/posts/${postId}`, {
-      method: 'DELETE'
-    });
+    return await this.gasPost('deletePost', { id: postId });
   },
 
   async updatePostStatus(postId, status, rejectionReason = '') {
-    return await this.request(`/api/posts/${postId}/status`, {
-      method: 'PATCH',
-      body: JSON.stringify({ status, rejectionReason })
-    });
+    return await this.gasPost('updateStatus', { id: postId, status, rejectionReason });
   },
 
   async getStats(clientId, yearMonth) {
-    return await this.request(`/api/posts/stats?clientId=${clientId}&yearMonth=${yearMonth}`);
+    return await this.gasGet('getStats', { clientId, yearMonth });
   },
 
   async updateMonthlyTarget(clientId, target) {
-    return await this.request(`/api/posts/target/${clientId}`, {
-      method: 'PUT',
-      body: JSON.stringify({ target })
-    });
+    return await this.gasPost('updateTarget', { clientId, monthlyTarget: target });
   },
 
   async getClients() {
-    return await this.request('/api/auth/clients');
+    const user = Auth.getCurrentUser() || {};
+    return await this.gasGet('getClients', {
+      role: user.role,
+      userId: user.id,
+      clientId: user.clientId
+    });
   },
 
   async createClient(clientData) {
-    return await this.request('/api/auth/clients', {
-      method: 'POST',
-      body: JSON.stringify(clientData)
-    });
+    return await this.gasPost('saveClient', clientData);
   },
 
   async getUsers() {
-    return await this.request('/api/auth/users');
+    return await this.gasGet('getUsers');
   },
 
   async createUser(userData) {
-    return await this.request('/api/auth/users', {
-      method: 'POST',
-      body: JSON.stringify(userData)
-    });
+    return await this.gasPost('saveUser', userData);
   },
 
   async getAssignments() {
-    return await this.request('/api/auth/assignments');
+    return await this.gasGet('getAssignments');
   },
 
   async createAssignment(assignmentData) {
-    return await this.request('/api/auth/assignments', {
-      method: 'POST',
-      body: JSON.stringify(assignmentData)
-    });
+    return await this.gasPost('saveAssignment', assignmentData);
   },
 
   async deleteAssignment(assignmentId) {
-    return await this.request(`/api/auth/assignments/${assignmentId}`, {
-      method: 'DELETE'
-    });
+    return await this.gasPost('deleteAssignment', { id: assignmentId });
   }
 };

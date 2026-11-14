@@ -22,7 +22,7 @@ const devFallbackSecret = crypto.randomBytes(32).toString('hex');
 
 export function createApp() {
   const app = express();
-  const jwtSecret = config.jwtSecret || (!process.env.VERCEL ? devFallbackSecret : '');
+  const jwtSecret = config.jwtSecret || devFallbackSecret;
 
   // Middlewares
   app.use(cors({
@@ -66,11 +66,9 @@ export function createApp() {
   // Rutas de Posts (todas protegidas por JWT)
   app.use(['/api/posts', '/posts'], requireAuth, createPostRoutes(postController));
 
-  // Servir estáticos en desarrollo local (fuera de Vercel)
-  if (!process.env.VERCEL) {
-    const staticPath = path.resolve(__dirname, '../../');
-    app.use(express.static(staticPath));
-  }
+  // Servir estáticos en desarrollo local
+  const staticPath = path.resolve(__dirname, '../../');
+  app.use(express.static(staticPath));
 
   // Manejador global de errores para Serverless
   app.use((err, req, res, next) => {
