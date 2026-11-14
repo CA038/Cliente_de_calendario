@@ -110,5 +110,34 @@ const API = {
 
   async deleteAssignment(assignmentId) {
     return await this.gasPost('deleteAssignment', { id: assignmentId });
+  },
+
+  uploadMedia(file) {
+    return new Promise((resolve, reject) => {
+      const maxBytes = 20 * 1024 * 1024; // 20 MB
+      if (file.size > maxBytes) {
+        resolve({ success: false, message: `"${file.name}" supera el límite de 20 MB para Google Apps Script.` });
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = async () => {
+        try {
+          const result = String(reader.result || '');
+          const commaIdx = result.indexOf(',');
+          const base64Data = commaIdx !== -1 ? result.slice(commaIdx + 1) : result;
+          const res = await this.gasPost('uploadMedia', {
+            fileName: file.name,
+            mimeType: file.type || 'application/octet-stream',
+            base64Data
+          });
+          resolve(res);
+        } catch (err) {
+          reject(err);
+        }
+      };
+      reader.onerror = () => resolve({ success: false, message: `No se pudo leer "${file.name}".` });
+      reader.readAsDataURL(file);
+    });
   }
 };

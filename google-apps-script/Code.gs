@@ -91,6 +91,9 @@ function doPost(e) {
       case 'login':
         result = loginUser(payload.data);
         break;
+      case 'uploadMedia':
+        result = uploadMediaToDrive(payload.data);
+        break;
       case 'savePost':
         result = savePost(payload.data);
         break;
@@ -428,6 +431,37 @@ function getMonthlyStats(clientId, yearMonth) {
     pendingCount: pendingCount,
     rejectedCount: rejectedCount,
     remainingPosts: remainingPosts
+  };
+}
+
+function uploadMediaToDrive(data) {
+  if (!data || !data.base64Data || !data.fileName) {
+    return { success: false, message: 'Archivo inválido o vacío' };
+  }
+
+  const folderName = 'Calendario_Post_Media';
+  const folders = DriveApp.getFoldersByName(folderName);
+  const folder = folders.hasNext() ? folders.next() : DriveApp.createFolder(folderName);
+
+  const bytes = Utilities.base64Decode(data.base64Data);
+  const mimeType = data.mimeType || 'application/octet-stream';
+  const blob = Utilities.newBlob(bytes, mimeType, data.fileName);
+  const file = folder.createFile(blob);
+
+  file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  const fileId = file.getId();
+  const isVideo = mimeType.indexOf('video/') === 0;
+  const url = isVideo
+    ? 'https://drive.google.com/file/d/' + fileId + '/preview'
+    : 'https://lh3.googleusercontent.com/d/' + fileId;
+
+  return {
+    success: true,
+    data: {
+      id: fileId,
+      url: url,
+      mimeType: mimeType
+    }
   };
 }
 

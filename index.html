@@ -273,9 +273,15 @@
         </div>
 
         <div class="form-group">
-          <label for="postMediaUrls">URL(s) de Multimedia (separadas por coma)</label>
+          <label for="postMediaFiles">Subir Foto(s) o Video directo a Google Drive</label>
+          <input type="file" id="postMediaFiles" class="form-input" multiple accept="image/*,video/*">
+          <small id="uploadStatusHint" class="form-hint">Máx. 20 MB por archivo. Se guardarán en tu carpeta "Calendario_Post_Media" de Drive.</small>
+        </div>
+
+        <div class="form-group">
+          <label for="postMediaUrls">URL(s) de Multimedia (opcional o generadas al subir)</label>
           <input type="text" id="postMediaUrls" class="form-input" placeholder="https://ejemplo.com/foto1.jpg, https://...">
-          <small class="form-hint">Puedes pegar enlaces directos de imágenes o videos.</small>
+          <small class="form-hint">También puedes pegar enlaces directos de imágenes o videos.</small>
         </div>
 
         <div class="modal-actions">

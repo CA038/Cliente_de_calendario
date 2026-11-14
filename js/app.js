@@ -315,12 +315,22 @@ function onPostClick(post) {
   mediaContainer.innerHTML = '';
   if (post.mediaUrls && post.mediaUrls.length > 0) {
     post.mediaUrls.forEach(url => {
-      if (post.mediaType === 'video') {
-        const vid = document.createElement('video');
-        vid.className = 'detail-media-video';
-        vid.src = url;
-        vid.controls = true;
-        mediaContainer.appendChild(vid);
+      if (post.mediaType === 'video' || String(url).includes('drive.google.com/file/d/')) {
+        if (String(url).includes('drive.google.com/file/d/')) {
+          const iframe = document.createElement('iframe');
+          iframe.className = 'detail-media-video';
+          iframe.src = url.includes('/preview') ? url : url.replace(/\/view.*$/, '/preview');
+          iframe.allow = 'autoplay';
+          iframe.style.border = 'none';
+          iframe.style.height = '200px';
+          mediaContainer.appendChild(iframe);
+        } else {
+          const vid = document.createElement('video');
+          vid.className = 'detail-media-video';
+          vid.src = url;
+          vid.controls = true;
+          mediaContainer.appendChild(vid);
+        }
       } else {
         const img = document.createElement('img');
         img.className = 'detail-media-img';
@@ -398,12 +408,29 @@ function openEditPostModal(post) {
 async function handleSavePost(e) {
   e.preventDefault();
   const submitBtn = e.target.querySelector('button[type="submit"]');
+  const submitLabel = document.getElementById('postSubmitLabel');
+  const prevLabel = submitLabel ? submitLabel.textContent : '';
   if (submitBtn) submitBtn.disabled = true;
 
   try {
     const rawUrls = document.getElementById('postMediaUrls').value.trim();
     const urls = rawUrls ? rawUrls.split(',').map(u => u.trim()).filter(Boolean) : [];
 
+    // Subir archivos seleccionados a Google Drive si hay alguno
+    const fileInput = document.getElementById('postMediaFiles');
+    const files = fileInput && fileInput.files ? Array.from(fileInput.files) : [];
+    for (let i = 0; i < files.length; i++) {
+      if (submitLabel) submitLabel.textContent = `Subiendo ${i + 1}/${files.length} a Drive...`;
+      const uploadRes = await API.uploadMedia(files[i]);
+      if (uploadRes.success && uploadRes.data && uploadRes.data.url) {
+        urls.push(uploadRes.data.url);
+      } else {
+        showToast(uploadRes.message || `Error al subir ${files[i].name}`, 'error');
+        return;
+      }
+    }
+
+    if (submitLabel) submitLabel.textContent = 'Guardando post...';
     const postData = {
       clientId: document.getElementById('postClient').value,
       title: document.getElementById('postTitle').value.trim(),
@@ -429,6 +456,7 @@ async function handleSavePost(e) {
     }
   } finally {
     if (submitBtn) submitBtn.disabled = false;
+    if (submitLabel) submitLabel.textContent = prevLabel;
   }
 }
 
