@@ -279,22 +279,29 @@ async function loadCalendarAndStats() {
   document.getElementById('currentMonthLabel').textContent = calendar.getMonthLabel();
   const { yearMonth } = calendar.getCurrentMonthYear();
 
-  // Cargar Posts
-  const postsRes = await API.getPosts(activeClient);
-  const posts = postsRes.success ? postsRes.data : [];
-  calendar.render(posts);
-
-  // Cargar Métricas y Faltantes
-  if (activeClient) {
-    const statsRes = await API.getStats(activeClient, yearMonth);
-    if (statsRes.success) {
-      const s = statsRes.data;
-      document.getElementById('kpiTargetVal').textContent = s.monthlyTarget;
-      document.getElementById('kpiRemainingVal').textContent = s.remainingPosts;
-      document.getElementById('kpiApprovedVal').textContent = s.approvedCount;
-      document.getElementById('kpiScheduledVal').textContent = s.totalScheduled;
-      document.getElementById('kpiRejectedVal').textContent = s.rejectedCount;
+  try {
+    // Cargar Posts
+    const postsRes = await API.getPosts(activeClient);
+    if (!postsRes.success) {
+      showToast(postsRes.message || 'No se pudieron cargar los posts.', 'error');
     }
+    const posts = postsRes.success ? (postsRes.data || []) : [];
+    calendar.render(posts);
+
+    // Cargar Métricas y Faltantes
+    if (activeClient) {
+      const statsRes = await API.getStats(activeClient, yearMonth);
+      if (statsRes.success && statsRes.data) {
+        const s = statsRes.data;
+        document.getElementById('kpiTargetVal').textContent = s.monthlyTarget;
+        document.getElementById('kpiRemainingVal').textContent = s.remainingPosts;
+        document.getElementById('kpiApprovedVal').textContent = s.approvedCount;
+        document.getElementById('kpiScheduledVal').textContent = s.totalScheduled;
+        document.getElementById('kpiRejectedVal').textContent = s.rejectedCount;
+      }
+    }
+  } catch (err) {
+    showToast(`Error de conexión al cargar calendario: ${err.message}`, 'error');
   }
 }
 
@@ -334,6 +341,7 @@ function onPostClick(post) {
       } else {
         const img = document.createElement('img');
         img.className = 'detail-media-img';
+        img.referrerPolicy = 'no-referrer';
         img.src = url;
         img.alt = post.title;
         mediaContainer.appendChild(img);
@@ -440,6 +448,11 @@ async function handleSavePost(e) {
       mediaUrls: urls
     };
 
+    if (!postData.clientId) {
+      showToast('Debes seleccionar un cliente antes de guardar el post.', 'error');
+      return;
+    }
+
     const wasEditing = Boolean(editingPostId);
     const res = wasEditing
       ? await API.updatePost(editingPostId, postData)
@@ -452,8 +465,10 @@ async function handleSavePost(e) {
       showToast(wasEditing ? 'Post actualizado y reenviado a revisión.' : 'Post programado correctamente.', 'success');
       await loadCalendarAndStats();
     } else {
-      showToast(res.message || 'Error al guardar post.', 'error');
+      showToast(res.message || res.error || 'Error al guardar post.', 'error');
     }
+  } catch (err) {
+    showToast(`Error al subir o guardar el post: ${err.message}`, 'error');
   } finally {
     if (submitBtn) submitBtn.disabled = false;
     if (submitLabel) submitLabel.textContent = prevLabel;

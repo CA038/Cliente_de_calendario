@@ -453,7 +453,7 @@ function uploadMediaToDrive(data) {
   const isVideo = mimeType.indexOf('video/') === 0;
   const url = isVideo
     ? 'https://drive.google.com/file/d/' + fileId + '/preview'
-    : 'https://lh3.googleusercontent.com/d/' + fileId;
+    : 'https://drive.google.com/thumbnail?id=' + fileId + '&sz=w1200';
 
   return {
     success: true,

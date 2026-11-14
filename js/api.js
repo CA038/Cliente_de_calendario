@@ -4,6 +4,18 @@ const API = {
     return (typeof CONFIG !== 'undefined' && CONFIG.GOOGLE_SCRIPT_URL) ? CONFIG.GOOGLE_SCRIPT_URL : '';
   },
 
+  async parseGasResponse(res) {
+    const raw = await res.text();
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return {
+        success: false,
+        message: 'Google Apps Script no devolvió JSON válido (revisa que la última versión esté implementada con acceso "Cualquier usuario").'
+      };
+    }
+  },
+
   async gasGet(action, params = {}) {
     const baseUrl = this.getScriptUrl();
     if (!baseUrl) {
@@ -19,7 +31,7 @@ const API = {
     });
 
     const res = await fetch(url.toString());
-    return await res.json();
+    return await this.parseGasResponse(res);
   },
 
   async gasPost(action, data = {}) {
@@ -34,7 +46,7 @@ const API = {
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({ action, data })
     });
-    return await res.json();
+    return await this.parseGasResponse(res);
   },
 
   async login(username, password) {
