@@ -10,7 +10,7 @@ Sistema de gestión y aprobación de publicaciones para redes sociales con roles
 ---
 
 ## 2. Repositorio Remoto, Despliegue y Variables de Entorno
-- **GitHub:** [https://github.com/CA038/calendario-de-post](https://github.com/CA038/calendario-de-post)
+- **GitHub:** [https://github.com/CA038/Cliente_de_calendario](https://github.com/CA038/Cliente_de_calendario)
 - **Vercel URL:** [https://calendario-de-post.vercel.app](https://calendario-de-post.vercel.app)
 - **Rama principal:** `main`
 - **Frontend:** Estático puro en raíz (`index.html`, `css/`, `js/`), servido por Vercel Edge CDN.
