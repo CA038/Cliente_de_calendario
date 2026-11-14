@@ -96,6 +96,10 @@ const API = {
     return await this.gasPost('saveUser', userData);
   },
 
+  async updateUser(userData) {
+    return await this.gasPost('updateUser', userData);
+  },
+
   async getAssignments() {
     return await this.gasGet('getAssignments');
   },

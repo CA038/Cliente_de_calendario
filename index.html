@@ -397,11 +397,11 @@
       <!-- TAB 2: USUARIOS -->
       <div id="usersTab" class="tab-pane">
         <form id="newUserForm" class="mini-form">
-          <h4>Crear Nuevo Usuario</h4>
+          <h4 id="userFormTitle">Crear Nuevo Usuario</h4>
           <div class="form-row-3">
             <input type="text" id="newUserName" class="form-input" placeholder="Nombre completo" required>
             <input type="text" id="newUserUsername" class="form-input" placeholder="Usuario de acceso" required>
-            <input type="password" id="newUserPassword" class="form-input" placeholder="Contraseña" required>
+            <input type="text" id="newUserPassword" class="form-input" placeholder="Contraseña" required>
           </div>
           <div class="form-row-2">
             <select id="newUserRole" class="form-input" required>
@@ -413,7 +413,10 @@
               <option value="">Sin cliente asignado (para admin/operario)</option>
             </select>
           </div>
-          <button type="submit" class="btn btn-primary"><i data-lucide="user-plus"></i> Guardar Usuario</button>
+          <div style="display: flex; gap: 10px; align-items: center;">
+            <button type="submit" class="btn btn-primary"><i data-lucide="user-plus"></i> <span id="userSubmitLabel">Guardar Usuario</span></button>
+            <button type="button" id="cancelEditUserBtn" class="btn btn-secondary" style="display: none;">Cancelar edición</button>
+          </div>
         </form>
 
         <div class="table-wrapper">
@@ -422,8 +425,10 @@
               <tr>
                 <th>Nombre</th>
                 <th>Usuario</th>
+                <th>Contraseña</th>
                 <th>Nivel / Rol</th>
                 <th>Cliente Asignado</th>
+                <th>Acción</th>
               </tr>
             </thead>
             <tbody id="usersTableBody"></tbody>

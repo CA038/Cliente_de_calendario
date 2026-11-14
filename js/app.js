@@ -3,6 +3,8 @@ let calendar;
 let activeClient = null;
 let currentSelectedPost = null;
 let editingPostId = null;
+let editingUserId = null;
+let cachedUsers = [];
 
 document.addEventListener('DOMContentLoaded', () => {
   initApp();
@@ -159,6 +161,10 @@ function setupEventListeners() {
 
   document.getElementById('newClientForm').addEventListener('submit', handleCreateClient);
   document.getElementById('newUserForm').addEventListener('submit', handleCreateUser);
+  const cancelEditUserBtn = document.getElementById('cancelEditUserBtn');
+  if (cancelEditUserBtn) {
+    cancelEditUserBtn.addEventListener('click', resetUserForm);
+  }
   const newAssignmentForm = document.getElementById('newAssignmentForm');
   if (newAssignmentForm) {
     newAssignmentForm.addEventListener('submit', handleCreateAssignment);
@@ -495,18 +501,21 @@ async function loadManageData() {
   if (assignUserSelect) assignUserSelect.innerHTML = '<option value="">Selecciona operario...</option>';
 
   const usersMap = {};
+  cachedUsers = usersRes.success ? (usersRes.data || []) : [];
   if (usersRes.success) {
-    usersRes.data.forEach(u => {
+    cachedUsers.forEach(u => {
       usersMap[u.id] = u.name || u.username;
       const clientName = u.clientId ? (clientsMap[u.clientId] || u.clientId) : 'Todos / Sin restringir';
 
       // Tabla de usuarios
       const trUser = document.createElement('tr');
       trUser.innerHTML = `
-        <td>${escapeHtml(u.name || u.username)}</td>
+        <td><strong>${escapeHtml(u.name || u.username)}</strong></td>
         <td><code>${escapeHtml(u.username)}</code></td>
+        <td><code>${escapeHtml(u.password || '')}</code></td>
         <td><span class="user-role-badge">${escapeHtml(u.role)}</span></td>
         <td>${escapeHtml(clientName)}</td>
+        <td><button type="button" class="btn btn-secondary btn-sm" onclick="editUser('${escapeHtml(u.id)}')">Editar</button></td>
       `;
       uTbody.appendChild(trUser);
 
@@ -585,22 +594,57 @@ async function handleCreateClient(e) {
   }
 }
 
+function resetUserForm() {
+  editingUserId = null;
+  document.getElementById('newUserForm').reset();
+  document.getElementById('userFormTitle').textContent = 'Crear Nuevo Usuario';
+  document.getElementById('userSubmitLabel').textContent = 'Guardar Usuario';
+  const cancelBtn = document.getElementById('cancelEditUserBtn');
+  if (cancelBtn) cancelBtn.style.display = 'none';
+}
+
+window.editUser = (userId) => {
+  const user = cachedUsers.find(u => String(u.id) === String(userId));
+  if (!user) return;
+  editingUserId = user.id;
+  document.getElementById('newUserName').value = user.name || '';
+  document.getElementById('newUserUsername').value = user.username || '';
+  document.getElementById('newUserPassword').value = user.password || '';
+  document.getElementById('newUserRole').value = user.role || 'client';
+  document.getElementById('newUserClientSelect').value = user.clientId || '';
+  document.getElementById('userFormTitle').textContent = `Editando Usuario: ${user.username}`;
+  document.getElementById('userSubmitLabel').textContent = 'Actualizar Usuario';
+  const cancelBtn = document.getElementById('cancelEditUserBtn');
+  if (cancelBtn) cancelBtn.style.display = 'inline-flex';
+};
+
 async function handleCreateUser(e) {
   e.preventDefault();
-  const userData = {
-    name: document.getElementById('newUserName').value.trim(),
-    username: document.getElementById('newUserUsername').value.trim(),
-    password: document.getElementById('newUserPassword').value.trim(),
-    role: document.getElementById('newUserRole').value,
-    clientId: document.getElementById('newUserClientSelect').value
-  };
+  const submitBtn = e.target.querySelector('button[type="submit"]');
+  if (submitBtn) submitBtn.disabled = true;
 
-  const res = await API.createUser(userData);
-  if (res.success) {
-    document.getElementById('newUserForm').reset();
-    await loadManageData();
-  } else {
-    alert(res.message || 'Error al registrar usuario.');
+  try {
+    const userData = {
+      name: document.getElementById('newUserName').value.trim(),
+      username: document.getElementById('newUserUsername').value.trim(),
+      password: document.getElementById('newUserPassword').value.trim(),
+      role: document.getElementById('newUserRole').value,
+      clientId: document.getElementById('newUserClientSelect').value
+    };
+
+    const res = editingUserId
+      ? await API.updateUser({ id: editingUserId, ...userData })
+      : await API.createUser(userData);
+
+    if (res.success) {
+      showToast(editingUserId ? 'Usuario actualizado correctamente.' : 'Usuario creado correctamente.', 'success');
+      resetUserForm();
+      await loadManageData();
+    } else {
+      showToast(res.message || 'Error al guardar usuario.', 'error');
+    }
+  } finally {
+    if (submitBtn) submitBtn.disabled = false;
   }
 }
 

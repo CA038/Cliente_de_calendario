@@ -54,6 +54,7 @@ function doGet(e) {
           data: getRowsAsObjects('Users').map(u => ({
             id: u.id,
             username: u.username,
+            password: u.password !== undefined ? String(u.password) : '',
             role: u.role,
             clientId: u.clientId || '',
             name: u.name || u.username
@@ -107,6 +108,9 @@ function doPost(e) {
         break;
       case 'saveUser':
         result = saveUser(payload.data);
+        break;
+      case 'updateUser':
+        result = updateUser(payload.data);
         break;
       case 'updateTarget':
         result = updateClientTarget(payload.data.clientId, payload.data.monthlyTarget);
@@ -287,6 +291,26 @@ function saveUser(user) {
   const id = user.id || Utilities.getUuid();
   sheet.appendRow([id, user.username, user.password, user.role, user.clientId || '', user.name || '']);
   return { success: true, id: id };
+}
+
+function updateUser(user) {
+  const sheet = SPREADSHEET.getSheetByName('Users');
+  const data = sheet.getDataRange().getValues();
+
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][0]) === String(user.id)) {
+      const rowNum = i + 1;
+      sheet.getRange(rowNum, 2).setValue(user.username || data[i][1]);
+      if (user.password !== undefined && String(user.password).trim() !== '') {
+        sheet.getRange(rowNum, 3).setValue(String(user.password));
+      }
+      sheet.getRange(rowNum, 4).setValue(user.role || data[i][3]);
+      sheet.getRange(rowNum, 5).setValue(user.clientId !== undefined ? user.clientId : data[i][4]);
+      sheet.getRange(rowNum, 6).setValue(user.name !== undefined ? user.name : data[i][5]);
+      return { success: true, message: 'Usuario actualizado' };
+    }
+  }
+  return { success: false, message: 'Usuario no encontrado' };
 }
 
 function saveAssignment(assignment) {
