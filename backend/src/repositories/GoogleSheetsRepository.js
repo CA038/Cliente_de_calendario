@@ -11,6 +11,9 @@ const localStore = {
     { id: 'usr_2', username: 'operario1', password: '123', role: 'operator', name: 'Carlos Operario', clientId: '' },
     { id: 'usr_3', username: 'cliente1', password: '123', role: 'client', name: 'Cliente Gourmet', clientId: 'cli_2' }
   ],
+  assignments: [
+    { id: 'asg_1', userId: 'usr_2', clientId: 'cli_1', taskNote: 'Calendario mensual', createdAt: new Date().toISOString() }
+  ],
   posts: [
     {
       id: 'post_1',
@@ -83,6 +86,45 @@ export class GoogleSheetsRepository {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'savePost', data: postData })
+    });
+    return await res.json();
+  }
+
+  async updatePost(postId, postData) {
+    if (!this.hasRemote()) {
+      const post = localStore.posts.find(p => String(p.id) === String(postId));
+      if (!post) return { success: false, message: 'Post no encontrado' };
+      post.clientId = postData.clientId || post.clientId;
+      post.title = postData.title;
+      post.caption = postData.caption || '';
+      post.mediaType = postData.mediaType || 'image';
+      post.mediaUrls = typeof postData.mediaUrls === 'string' ? postData.mediaUrls : JSON.stringify(postData.mediaUrls || []);
+      post.scheduledDate = postData.scheduledDate;
+      post.status = 'pending';
+      post.rejectionReason = '';
+      return { success: true, message: 'Post actualizado' };
+    }
+
+    const res = await fetch(this.scriptUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'updatePost', data: { ...postData, id: postId, status: 'pending' } })
+    });
+    return await res.json();
+  }
+
+  async deletePost(postId) {
+    if (!this.hasRemote()) {
+      const idx = localStore.posts.findIndex(p => String(p.id) === String(postId));
+      if (idx === -1) return { success: false, message: 'Post no encontrado' };
+      localStore.posts.splice(idx, 1);
+      return { success: true, message: 'Post eliminado' };
+    }
+
+    const res = await fetch(this.scriptUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'deletePost', data: { id: postId } })
     });
     return await res.json();
   }
@@ -179,6 +221,52 @@ export class GoogleSheetsRepository {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'saveUser', data: userData })
+    });
+    return await res.json();
+  }
+
+  async getAssignments() {
+    if (!this.hasRemote()) {
+      return [...localStore.assignments];
+    }
+    const res = await fetch(`${this.scriptUrl}?action=getAssignments`);
+    const json = await res.json();
+    return json.success ? json.data : [];
+  }
+
+  async saveAssignment(assignmentData) {
+    if (!this.hasRemote()) {
+      const newAsg = {
+        id: `asg_${Date.now()}`,
+        userId: assignmentData.userId,
+        clientId: assignmentData.clientId,
+        taskNote: assignmentData.taskNote || '',
+        createdAt: new Date().toISOString()
+      };
+      localStore.assignments.push(newAsg);
+      return { success: true, id: newAsg.id };
+    }
+
+    const res = await fetch(this.scriptUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'saveAssignment', data: assignmentData })
+    });
+    return await res.json();
+  }
+
+  async deleteAssignment(assignmentId) {
+    if (!this.hasRemote()) {
+      const idx = localStore.assignments.findIndex(a => String(a.id) === String(assignmentId));
+      if (idx === -1) return { success: false, message: 'Asignación no encontrada' };
+      localStore.assignments.splice(idx, 1);
+      return { success: true, message: 'Asignación eliminada' };
+    }
+
+    const res = await fetch(this.scriptUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'deleteAssignment', data: { id: assignmentId } })
     });
     return await res.json();
   }

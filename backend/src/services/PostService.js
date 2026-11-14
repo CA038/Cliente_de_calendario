@@ -4,9 +4,28 @@ export class PostService {
   }
 
   async getPostsForUser(user, clientIdFilter = null) {
-    // Si el usuario es un cliente, sólo puede ver sus propios posts
-    const effectiveClientId = user.role === 'client' ? user.clientId : clientIdFilter;
-    const posts = await this.postRepository.getPosts(effectiveClientId);
+    let posts = [];
+    if (user.role === 'client') {
+      posts = await this.postRepository.getPosts(user.clientId);
+    } else if (user.role === 'operator') {
+      const assignments = await this.postRepository.getAssignments();
+      const allowedIds = new Set(
+        assignments
+          .filter(a => String(a.userId) === String(user.id))
+          .map(a => String(a.clientId))
+      );
+      if (clientIdFilter) {
+        if (!allowedIds.has(String(clientIdFilter))) {
+          return [];
+        }
+        posts = await this.postRepository.getPosts(clientIdFilter);
+      } else {
+        const allPosts = await this.postRepository.getPosts(null);
+        posts = allPosts.filter(p => allowedIds.has(String(p.clientId)));
+      }
+    } else {
+      posts = await this.postRepository.getPosts(clientIdFilter);
+    }
 
     return posts.map(post => {
       let parsedMedia = [];
@@ -31,6 +50,24 @@ export class PostService {
     }
 
     return await this.postRepository.savePost(postData);
+  }
+
+  async updatePost(postId, postData, user) {
+    if (user.role === 'client') {
+      throw new Error('Los clientes no tienen permiso para editar posts.');
+    }
+    if (!postData.title || !postData.clientId || !postData.scheduledDate) {
+      throw new Error('Título, cliente y fecha programada son obligatorios.');
+    }
+
+    return await this.postRepository.updatePost(postId, postData);
+  }
+
+  async deletePost(postId, user) {
+    if (user.role === 'client') {
+      throw new Error('Los clientes no tienen permiso para eliminar posts.');
+    }
+    return await this.postRepository.deletePost(postId);
   }
 
   async updateStatus(postId, status, rejectionReason, user) {
@@ -63,7 +100,8 @@ export class PostService {
     const pendingCount = monthPosts.filter(p => p.status === 'pending').length;
     const rejectedCount = monthPosts.filter(p => p.status === 'rejected').length;
     const totalScheduled = monthPosts.length;
-    const remaining = Math.max(0, target - totalScheduled);
+    // Los posts rechazados no cuentan como meta cumplida
+    const remaining = Math.max(0, target - (approvedCount + pendingCount));
 
     return {
       monthlyTarget: target,

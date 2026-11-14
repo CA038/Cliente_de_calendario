@@ -1,24 +1,30 @@
+import { config } from '../config/index.js';
+import { hashPassword, verifyPassword, signJwt } from '../utils/security.js';
+
 export class AuthService {
-  constructor(sheetsRepository) {
+  constructor(sheetsRepository, jwtSecret = config.jwtSecret) {
     this.sheetsRepository = sheetsRepository;
+    this.jwtSecret = jwtSecret;
   }
 
   async login(username, password) {
     const users = await this.sheetsRepository.getUsers();
-    const user = users.find(u => u.username === username && String(u.password) === String(password));
+    const user = users.find(u => u.username === username && verifyPassword(password, u.password));
 
     if (!user) {
       throw new Error('Credenciales incorrectas');
     }
 
-    // Retorna usuario sin la contraseña sensible
-    return {
+    const safeUser = {
       id: user.id,
       username: user.username,
       role: user.role, // 'superadmin' | 'operator' | 'client'
       clientId: user.clientId || '',
       name: user.name || user.username
     };
+
+    const token = signJwt(safeUser, this.jwtSecret);
+    return { user: safeUser, token };
   }
 
   async createUser(userData, currentUser) {
@@ -39,7 +45,12 @@ export class AuthService {
       throw new Error('Los usuarios clientes deben estar asignados a un cliente específico.');
     }
 
-    return await this.sheetsRepository.saveUser(userData);
+    const userToSave = {
+      ...userData,
+      password: hashPassword(userData.password)
+    };
+
+    return await this.sheetsRepository.saveUser(userToSave);
   }
 
   async createClient(clientData, currentUser) {
@@ -59,7 +70,44 @@ export class AuthService {
     if (currentUser.role === 'client') {
       return clients.filter(c => String(c.id) === String(currentUser.clientId));
     }
+    if (currentUser.role === 'operator') {
+      const assignments = await this.sheetsRepository.getAssignments();
+      const allowedIds = new Set(
+        assignments
+          .filter(a => String(a.userId) === String(currentUser.id))
+          .map(a => String(a.clientId))
+      );
+      return clients.filter(c => allowedIds.has(String(c.id)));
+    }
     return clients;
+  }
+
+  async getAssignments(currentUser) {
+    const assignments = await this.sheetsRepository.getAssignments();
+    if (currentUser.role === 'superadmin') {
+      return assignments;
+    }
+    if (currentUser.role === 'operator') {
+      return assignments.filter(a => String(a.userId) === String(currentUser.id));
+    }
+    throw new Error('No tienes permisos para consultar asignaciones.');
+  }
+
+  async createAssignment(data, currentUser) {
+    if (currentUser.role !== 'superadmin') {
+      throw new Error('Solo el superusuario puede asignar clientes o tareas.');
+    }
+    if (!data.userId || !data.clientId) {
+      throw new Error('Debes seleccionar un operario y un cliente.');
+    }
+    return await this.sheetsRepository.saveAssignment(data);
+  }
+
+  async deleteAssignment(assignmentId, currentUser) {
+    if (currentUser.role !== 'superadmin') {
+      throw new Error('Solo el superusuario puede eliminar asignaciones.');
+    }
+    return await this.sheetsRepository.deleteAssignment(assignmentId);
   }
 
   async getUsers(currentUser) {

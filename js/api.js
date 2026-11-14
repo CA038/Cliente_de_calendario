@@ -5,106 +5,112 @@ const API_BASE_URL = (window.location.protocol === 'file:' || isLocalCustomPort)
   : '';
 
 const API = {
-  getUserHeader() {
-    const user = Auth.getCurrentUser();
-    return user ? { 'x-user-data': encodeURIComponent(JSON.stringify(user)) } : {};
+  getAuthHeaders() {
+    const token = Auth.getToken();
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  },
+
+  async request(path, options = {}) {
+    const headers = {
+      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+      ...this.getAuthHeaders(),
+      ...(options.headers || {})
+    };
+
+    const res = await fetch(`${API_BASE_URL}${path}`, { ...options, headers });
+    if (res.status === 401 && path !== '/api/auth/login') {
+      Auth.logout();
+      return { success: false, message: 'Sesión expirada' };
+    }
+    return await res.json();
   },
 
   async login(username, password) {
-    const res = await fetch(`${API_BASE_URL}/api/auth/login`, {
+    return await this.request('/api/auth/login', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password })
     });
-    return await res.json();
   },
 
   async getPosts(clientId = null) {
     const query = clientId ? `?clientId=${clientId}` : '';
-    const res = await fetch(`${API_BASE_URL}/api/posts${query}`, {
-      headers: { ...this.getUserHeader() }
-    });
-    return await res.json();
+    return await this.request(`/api/posts${query}`);
   },
 
   async createPost(postData) {
-    const res = await fetch(`${API_BASE_URL}/api/posts`, {
+    return await this.request('/api/posts', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...this.getUserHeader()
-      },
       body: JSON.stringify(postData)
     });
-    return await res.json();
+  },
+
+  async updatePost(postId, postData) {
+    return await this.request(`/api/posts/${postId}`, {
+      method: 'PUT',
+      body: JSON.stringify(postData)
+    });
+  },
+
+  async deletePost(postId) {
+    return await this.request(`/api/posts/${postId}`, {
+      method: 'DELETE'
+    });
   },
 
   async updatePostStatus(postId, status, rejectionReason = '') {
-    const res = await fetch(`${API_BASE_URL}/api/posts/${postId}/status`, {
+    return await this.request(`/api/posts/${postId}/status`, {
       method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        ...this.getUserHeader()
-      },
       body: JSON.stringify({ status, rejectionReason })
     });
-    return await res.json();
   },
 
   async getStats(clientId, yearMonth) {
-    const res = await fetch(`${API_BASE_URL}/api/posts/stats?clientId=${clientId}&yearMonth=${yearMonth}`, {
-      headers: { ...this.getUserHeader() }
-    });
-    return await res.json();
+    return await this.request(`/api/posts/stats?clientId=${clientId}&yearMonth=${yearMonth}`);
   },
 
   async updateMonthlyTarget(clientId, target) {
-    const res = await fetch(`${API_BASE_URL}/api/posts/target/${clientId}`, {
+    return await this.request(`/api/posts/target/${clientId}`, {
       method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        ...this.getUserHeader()
-      },
       body: JSON.stringify({ target })
     });
-    return await res.json();
   },
 
   async getClients() {
-    const res = await fetch(`${API_BASE_URL}/api/auth/clients`, {
-      headers: { ...this.getUserHeader() }
-    });
-    return await res.json();
+    return await this.request('/api/auth/clients');
   },
 
   async createClient(clientData) {
-    const res = await fetch(`${API_BASE_URL}/api/auth/clients`, {
+    return await this.request('/api/auth/clients', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...this.getUserHeader()
-      },
       body: JSON.stringify(clientData)
     });
-    return await res.json();
   },
 
   async getUsers() {
-    const res = await fetch(`${API_BASE_URL}/api/auth/users`, {
-      headers: { ...this.getUserHeader() }
-    });
-    return await res.json();
+    return await this.request('/api/auth/users');
   },
 
   async createUser(userData) {
-    const res = await fetch(`${API_BASE_URL}/api/auth/users`, {
+    return await this.request('/api/auth/users', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...this.getUserHeader()
-      },
       body: JSON.stringify(userData)
     });
-    return await res.json();
+  },
+
+  async getAssignments() {
+    return await this.request('/api/auth/assignments');
+  },
+
+  async createAssignment(assignmentData) {
+    return await this.request('/api/auth/assignments', {
+      method: 'POST',
+      body: JSON.stringify(assignmentData)
+    });
+  },
+
+  async deleteAssignment(assignmentId) {
+    return await this.request(`/api/auth/assignments/${assignmentId}`, {
+      method: 'DELETE'
+    });
   }
 };

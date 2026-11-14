@@ -506,3 +506,78 @@ body {
 .data-table th, .data-table td { padding: 9px 12px; text-align: left; border-bottom: 1px solid var(--border); }
 .data-table th { background: var(--bg-main); color: var(--text-muted); font-weight: 700; }
 .error-banner { background: var(--danger-bg); color: var(--danger); padding: 8px 12px; border-radius: var(--radius-sm); font-size: 0.82rem; margin-bottom: 12px; }
+
+/* TOASTS Y LOADING */
+.toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 2000;
+}
+.toast {
+  background: var(--dark);
+  color: #fff;
+  padding: 12px 18px;
+  border-radius: var(--radius-md);
+  font-size: 0.88rem;
+  font-weight: 600;
+  box-shadow: var(--shadow-lg);
+  border-left: 4px solid var(--primary);
+  animation: toastSlideIn 0.2s ease-out;
+}
+.toast.success { border-left-color: var(--success); }
+.toast.error { border-left-color: var(--danger); }
+@keyframes toastSlideIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.mobile-menu-btn {
+  display: none;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 8px;
+  cursor: pointer;
+  color: var(--dark);
+}
+.sidebar-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(24, 24, 27, 0.45);
+  z-index: 900;
+}
+.sidebar-backdrop.active { display: block; }
+
+/* RESPONSIVE */
+@media (max-width: 960px) {
+  .mobile-menu-btn { display: inline-flex; align-items: center; justify-content: center; }
+  .app-sidebar {
+    position: fixed;
+    left: -280px;
+    top: 0;
+    bottom: 0;
+    z-index: 950;
+    transition: left 0.25s ease;
+  }
+  .app-sidebar.open { left: 0; }
+  .app-main-content { width: 100%; padding: 16px; }
+  .kpi-banner { grid-template-columns: repeat(2, 1fr); }
+  .calendar-section { overflow-x: auto; }
+  .calendar-weekdays, .calendar-grid { min-width: 720px; }
+}
+
+@media (max-width: 640px) {
+  .login-card { padding: 26px 20px; }
+  .app-topbar { flex-wrap: wrap; gap: 10px; }
+  .topbar-left { flex-wrap: wrap; width: 100%; }
+  .kpi-banner { grid-template-columns: 1fr; }
+  .form-row, .form-row-2, .form-row-3 { grid-template-columns: 1fr; }
+  .detail-footer { flex-wrap: wrap; }
+  .toast-container { left: 16px; right: 16px; bottom: 16px; }
+}

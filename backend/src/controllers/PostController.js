@@ -16,9 +16,28 @@ export class PostController {
 
   createPost = async (req, res) => {
     try {
-      const user = req.user || { role: 'superadmin' };
-      const result = await this.postService.createPost(req.body, user);
+      const result = await this.postService.createPost(req.body, req.user);
       res.status(201).json({ success: true, data: result });
+    } catch (err) {
+      res.status(400).json({ success: false, message: err.message });
+    }
+  };
+
+  updatePost = async (req, res) => {
+    try {
+      const { id } = req.params;
+      const result = await this.postService.updatePost(id, req.body, req.user);
+      res.json({ success: true, data: result });
+    } catch (err) {
+      res.status(400).json({ success: false, message: err.message });
+    }
+  };
+
+  deletePost = async (req, res) => {
+    try {
+      const { id } = req.params;
+      const result = await this.postService.deletePost(id, req.user);
+      res.json({ success: true, data: result });
     } catch (err) {
       res.status(400).json({ success: false, message: err.message });
     }

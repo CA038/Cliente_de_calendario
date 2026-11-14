@@ -1,10 +1,22 @@
 // Manejo de Autenticación y Permisos por Rol
 const Auth = {
   STORAGE_KEY: 'adrian_crea_auth_user',
+  TOKEN_KEY: 'adrian_crea_auth_token',
 
   getCurrentUser() {
     const raw = localStorage.getItem(this.STORAGE_KEY);
     return raw ? JSON.parse(raw) : null;
+  },
+
+  getToken() {
+    return localStorage.getItem(this.TOKEN_KEY) || '';
+  },
+
+  setSession(user, token) {
+    localStorage.setItem(this.STORAGE_KEY, JSON.stringify(user));
+    if (token) {
+      localStorage.setItem(this.TOKEN_KEY, token);
+    }
   },
 
   setCurrentUser(user) {
@@ -13,6 +25,7 @@ const Auth = {
 
   logout() {
     localStorage.removeItem(this.STORAGE_KEY);
+    localStorage.removeItem(this.TOKEN_KEY);
     window.location.reload();
   },
 

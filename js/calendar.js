@@ -95,12 +95,13 @@ class CalendarView {
       
       const mediaIcon = post.mediaType === 'video' ? 'video' : (post.mediaType === 'gallery' ? 'images' : 'image');
       const time = post.scheduledDate ? post.scheduledDate.slice(11, 16) : '';
+      const safeTitle = this.escapeHtml(post.title || '');
 
       postCard.innerHTML = `
         <div class="mini-card-top">
           <span class="mini-media-badge"><i data-lucide="${mediaIcon}"></i> ${time}</span>
         </div>
-        <div class="mini-post-title" title="${post.title}">${post.title}</div>
+        <div class="mini-post-title" title="${safeTitle}">${safeTitle}</div>
       `;
 
       postCard.addEventListener('click', (e) => {
@@ -113,5 +114,14 @@ class CalendarView {
 
     cell.appendChild(postsList);
     return cell;
+  }
+
+  escapeHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
 }

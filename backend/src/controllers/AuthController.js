@@ -6,8 +6,8 @@ export class AuthController {
   login = async (req, res) => {
     try {
       const { username, password } = req.body;
-      const user = await this.authService.login(username, password);
-      res.json({ success: true, data: user });
+      const session = await this.authService.login(username, password);
+      res.json({ success: true, data: session });
     } catch (err) {
       res.status(401).json({ success: false, message: err.message });
     }
@@ -15,8 +15,7 @@ export class AuthController {
 
   getClients = async (req, res) => {
     try {
-      const user = req.user || { role: 'superadmin' };
-      const clients = await this.authService.getClients(user);
+      const clients = await this.authService.getClients(req.user);
       res.json({ success: true, data: clients });
     } catch (err) {
       res.status(400).json({ success: false, message: err.message });
@@ -25,8 +24,7 @@ export class AuthController {
 
   createClient = async (req, res) => {
     try {
-      const user = req.user || { role: 'superadmin' };
-      const result = await this.authService.createClient(req.body, user);
+      const result = await this.authService.createClient(req.body, req.user);
       res.status(201).json({ success: true, data: result });
     } catch (err) {
       res.status(400).json({ success: false, message: err.message });
@@ -35,8 +33,7 @@ export class AuthController {
 
   getUsers = async (req, res) => {
     try {
-      const user = req.user || { role: 'superadmin' };
-      const users = await this.authService.getUsers(user);
+      const users = await this.authService.getUsers(req.user);
       res.json({ success: true, data: users });
     } catch (err) {
       res.status(403).json({ success: false, message: err.message });
@@ -45,9 +42,35 @@ export class AuthController {
 
   createUser = async (req, res) => {
     try {
-      const user = req.user || { role: 'superadmin' };
-      const result = await this.authService.createUser(req.body, user);
+      const result = await this.authService.createUser(req.body, req.user);
       res.status(201).json({ success: true, data: result });
+    } catch (err) {
+      res.status(400).json({ success: false, message: err.message });
+    }
+  };
+
+  getAssignments = async (req, res) => {
+    try {
+      const data = await this.authService.getAssignments(req.user);
+      res.json({ success: true, data });
+    } catch (err) {
+      res.status(403).json({ success: false, message: err.message });
+    }
+  };
+
+  createAssignment = async (req, res) => {
+    try {
+      const result = await this.authService.createAssignment(req.body, req.user);
+      res.status(201).json({ success: true, data: result });
+    } catch (err) {
+      res.status(400).json({ success: false, message: err.message });
+    }
+  };
+
+  deleteAssignment = async (req, res) => {
+    try {
+      const result = await this.authService.deleteAssignment(req.params.id, req.user);
+      res.json({ success: true, data: result });
     } catch (err) {
       res.status(400).json({ success: false, message: err.message });
     }

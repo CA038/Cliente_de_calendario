@@ -2,6 +2,7 @@
 let calendar;
 let activeClient = null;
 let currentSelectedPost = null;
+let editingPostId = null;
 
 document.addEventListener('DOMContentLoaded', () => {
   initApp();
@@ -12,7 +13,8 @@ function initApp() {
   setupEventListeners();
 
   const user = Auth.getCurrentUser();
-  if (user) {
+  const token = Auth.getToken();
+  if (user && token) {
     showAppScreen();
   } else {
     showLoginScreen();
@@ -22,6 +24,15 @@ function initApp() {
 function showLoginScreen() {
   document.getElementById('loginScreen').style.display = 'flex';
   document.getElementById('appScreen').style.display = 'none';
+
+  const quickAccess = document.getElementById('quickAccessDemo');
+  if (quickAccess) {
+    const isLocal = window.location.hostname === 'localhost' ||
+      window.location.hostname === '127.0.0.1' ||
+      window.location.protocol === 'file:';
+    quickAccess.style.display = isLocal ? 'block' : 'none';
+  }
+
   if (window.lucide) window.lucide.createIcons();
 }
 
@@ -63,6 +74,23 @@ function setupEventListeners() {
   const sideLogoutBtn = document.getElementById('sideLogoutBtn');
   if (sideLogoutBtn) sideLogoutBtn.addEventListener('click', () => Auth.logout());
 
+  // Menú móvil (hamburguesa)
+  const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+  const sidebar = document.getElementById('appSidebar');
+  const backdrop = document.getElementById('sidebarBackdrop');
+  const closeSidebar = () => {
+    if (sidebar) sidebar.classList.remove('open');
+    if (backdrop) backdrop.classList.remove('active');
+  };
+  if (mobileMenuBtn && sidebar && backdrop) {
+    mobileMenuBtn.addEventListener('click', () => {
+      sidebar.classList.toggle('open');
+      backdrop.classList.toggle('active');
+    });
+    backdrop.addEventListener('click', closeSidebar);
+    document.querySelectorAll('.sidebar-btn').forEach(btn => btn.addEventListener('click', closeSidebar));
+  }
+
   // Navegación del Menú Lateral
   const sideNavCalendar = document.getElementById('sideNavCalendar');
   if (sideNavCalendar) {
@@ -75,7 +103,7 @@ function setupEventListeners() {
 
   const sideNavNewPost = document.getElementById('sideNavNewPost');
   if (sideNavNewPost) {
-    sideNavNewPost.addEventListener('click', () => openModal('postModal'));
+    sideNavNewPost.addEventListener('click', openNewPostModal);
   }
 
   const sideNavClients = document.getElementById('sideNavClients');
@@ -115,10 +143,10 @@ function setupEventListeners() {
   // Botón Nuevo Post en Topbar
   const newPostBtn = document.getElementById('newPostBtn');
   if (newPostBtn) {
-    newPostBtn.addEventListener('click', () => openModal('postModal'));
+    newPostBtn.addEventListener('click', openNewPostModal);
   }
 
-  document.getElementById('postForm').addEventListener('submit', handleCreatePost);
+  document.getElementById('postForm').addEventListener('submit', handleSavePost);
 
   // Pestañas internas de Administración
   document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -132,6 +160,10 @@ function setupEventListeners() {
 
   document.getElementById('newClientForm').addEventListener('submit', handleCreateClient);
   document.getElementById('newUserForm').addEventListener('submit', handleCreateUser);
+  const newAssignmentForm = document.getElementById('newAssignmentForm');
+  if (newAssignmentForm) {
+    newAssignmentForm.addEventListener('submit', handleCreateAssignment);
+  }
 
   // Edición rápida de meta mensual
   const editTargetBtn = document.getElementById('editTargetBtn');
@@ -139,7 +171,20 @@ function setupEventListeners() {
     editTargetBtn.addEventListener('click', handleEditTarget);
   }
 
-  // Acciones en Detalle de Post (Aprobar / Rechazar)
+  // Acciones en Detalle de Post (Editar / Eliminar / Aprobar / Rechazar)
+  const editPostBtn = document.getElementById('editPostBtn');
+  if (editPostBtn) {
+    editPostBtn.addEventListener('click', () => {
+      if (currentSelectedPost) {
+        closeModal('detailModal');
+        openEditPostModal(currentSelectedPost);
+      }
+    });
+  }
+  const deletePostBtn = document.getElementById('deletePostBtn');
+  if (deletePostBtn) {
+    deletePostBtn.addEventListener('click', handleDeletePost);
+  }
   document.getElementById('approvePostBtn').addEventListener('click', () => handleUpdateStatus('approved'));
   document.getElementById('openRejectBtn').addEventListener('click', () => {
     document.getElementById('rejectionInputSection').style.display = 'block';
@@ -150,7 +195,7 @@ function setupEventListeners() {
   document.getElementById('confirmRejectBtn').addEventListener('click', () => {
     const reason = document.getElementById('rejectionReasonInput').value.trim();
     if (!reason) {
-      alert('Por favor especifica el motivo del rechazo.');
+      showToast('Por favor especifica el motivo del rechazo.', 'error');
       return;
     }
     handleUpdateStatus('rejected', reason);
@@ -172,8 +217,8 @@ async function handleLogin(e) {
 
   try {
     const res = await API.login(userVal, passVal);
-    if (res.success && res.data) {
-      Auth.setCurrentUser(res.data);
+    if (res.success && res.data && res.data.user && res.data.token) {
+      Auth.setSession(res.data.user, res.data.token);
       showAppScreen();
     } else {
       errorBanner.textContent = res.message || 'Usuario o contraseña incorrectos';
@@ -218,6 +263,8 @@ async function loadClients() {
   } else if (clients.length > 0) {
     activeClient = clients[0].id;
     clientSelect.value = activeClient;
+  } else {
+    activeClient = null;
   }
 }
 
@@ -293,6 +340,13 @@ function onPostClick(post) {
   document.getElementById('rejectionInputSection').style.display = 'none';
   document.getElementById('rejectionReasonInput').value = '';
 
+  // Mostrar botones de Editar/Eliminar solo a operarios y superadmin
+  const canEdit = Auth.isOperator();
+  const editBtn = document.getElementById('editPostBtn');
+  const deleteBtn = document.getElementById('deletePostBtn');
+  if (editBtn) editBtn.style.display = canEdit ? 'inline-flex' : 'none';
+  if (deleteBtn) deleteBtn.style.display = canEdit ? 'inline-flex' : 'none';
+
   openModal('detailModal');
 }
 
@@ -302,33 +356,87 @@ async function handleUpdateStatus(status, rejectionReason = '') {
   const res = await API.updatePostStatus(currentSelectedPost.id, status, rejectionReason);
   if (res.success) {
     closeModal('detailModal');
+    showToast(status === 'approved' ? 'Post aprobado.' : 'Post rechazado con observaciones.', 'success');
     await loadCalendarAndStats();
   } else {
-    alert(res.message || 'Error al actualizar estado.');
+    showToast(res.message || 'Error al actualizar estado.', 'error');
   }
 }
 
-async function handleCreatePost(e) {
+function openNewPostModal() {
+  editingPostId = null;
+  document.getElementById('postForm').reset();
+  if (activeClient) {
+    document.getElementById('postClient').value = activeClient;
+  }
+  document.getElementById('postModalTitle').textContent = 'Programar Nuevo Post';
+  document.getElementById('postSubmitLabel').textContent = 'Programar Post';
+  openModal('postModal');
+}
+
+function openEditPostModal(post) {
+  editingPostId = post.id;
+  document.getElementById('postClient').value = post.clientId || activeClient || '';
+  document.getElementById('postTitle').value = post.title || '';
+  document.getElementById('postCaption').value = post.caption || '';
+  document.getElementById('postMediaType').value = post.mediaType || 'image';
+  document.getElementById('postDate').value = post.scheduledDate ? post.scheduledDate.slice(0, 16) : '';
+  document.getElementById('postMediaUrls').value = Array.isArray(post.mediaUrls) ? post.mediaUrls.join(', ') : '';
+
+  document.getElementById('postModalTitle').textContent = 'Editar Post (Reenviar a Revisión)';
+  document.getElementById('postSubmitLabel').textContent = 'Guardar Cambios';
+  openModal('postModal');
+}
+
+async function handleSavePost(e) {
   e.preventDefault();
-  const rawUrls = document.getElementById('postMediaUrls').value.trim();
-  const urls = rawUrls ? rawUrls.split(',').map(u => u.trim()) : [];
+  const submitBtn = e.target.querySelector('button[type="submit"]');
+  if (submitBtn) submitBtn.disabled = true;
 
-  const postData = {
-    clientId: document.getElementById('postClient').value,
-    title: document.getElementById('postTitle').value.trim(),
-    caption: document.getElementById('postCaption').value.trim(),
-    mediaType: document.getElementById('postMediaType').value,
-    scheduledDate: document.getElementById('postDate').value,
-    mediaUrls: urls
-  };
+  try {
+    const rawUrls = document.getElementById('postMediaUrls').value.trim();
+    const urls = rawUrls ? rawUrls.split(',').map(u => u.trim()).filter(Boolean) : [];
 
-  const res = await API.createPost(postData);
+    const postData = {
+      clientId: document.getElementById('postClient').value,
+      title: document.getElementById('postTitle').value.trim(),
+      caption: document.getElementById('postCaption').value.trim(),
+      mediaType: document.getElementById('postMediaType').value,
+      scheduledDate: document.getElementById('postDate').value,
+      mediaUrls: urls
+    };
+
+    const wasEditing = Boolean(editingPostId);
+    const res = wasEditing
+      ? await API.updatePost(editingPostId, postData)
+      : await API.createPost(postData);
+
+    if (res.success) {
+      editingPostId = null;
+      closeModal('postModal');
+      document.getElementById('postForm').reset();
+      showToast(wasEditing ? 'Post actualizado y reenviado a revisión.' : 'Post programado correctamente.', 'success');
+      await loadCalendarAndStats();
+    } else {
+      showToast(res.message || 'Error al guardar post.', 'error');
+    }
+  } finally {
+    if (submitBtn) submitBtn.disabled = false;
+  }
+}
+
+async function handleDeletePost() {
+  if (!currentSelectedPost) return;
+  if (!confirm(`¿Seguro que deseas eliminar "${currentSelectedPost.title}"?`)) return;
+
+  const res = await API.deletePost(currentSelectedPost.id);
   if (res.success) {
-    closeModal('postModal');
-    document.getElementById('postForm').reset();
+    closeModal('detailModal');
+    currentSelectedPost = null;
+    showToast('Post eliminado.', 'success');
     await loadCalendarAndStats();
   } else {
-    alert(res.message || 'Error al crear post.');
+    showToast(res.message || 'Error al eliminar post.', 'error');
   }
 }
 
@@ -346,57 +454,110 @@ async function handleEditTarget() {
 }
 
 async function loadManageData() {
-  const clientsRes = await API.getClients();
-  const usersRes = await API.getUsers();
+  const [clientsRes, usersRes, assignRes] = await Promise.all([
+    API.getClients(),
+    API.getUsers(),
+    API.getAssignments()
+  ]);
 
   const cTbody = document.getElementById('clientsTableBody');
+  const assignClientSelect = document.getElementById('assignClientSelect');
   cTbody.innerHTML = '';
+  if (assignClientSelect) assignClientSelect.innerHTML = '<option value="">Selecciona cliente...</option>';
+
   const clientsMap = {};
   if (clientsRes.success) {
     clientsRes.data.forEach(c => {
       clientsMap[c.id] = c.name;
       const tr = document.createElement('tr');
       tr.innerHTML = `
-        <td><strong>${c.name}</strong></td>
-        <td>${c.monthlyTarget} posts</td>
-        <td><button class="btn btn-secondary btn-sm" onclick="editSpecificTarget('${c.id}', ${c.monthlyTarget})">Modificar Meta</button></td>
+        <td><strong>${escapeHtml(c.name)}</strong></td>
+        <td>${Number(c.monthlyTarget || 0)} posts</td>
+        <td><button class="btn btn-secondary btn-sm" onclick="editSpecificTarget('${escapeHtml(c.id)}', ${Number(c.monthlyTarget || 0)})">Modificar Meta</button></td>
       `;
       cTbody.appendChild(tr);
+
+      if (assignClientSelect) {
+        const opt = document.createElement('option');
+        opt.value = c.id;
+        opt.textContent = c.name;
+        assignClientSelect.appendChild(opt);
+      }
     });
   }
 
   const uTbody = document.getElementById('usersTableBody');
   const aTbody = document.getElementById('assignmentsTableBody');
+  const assignUserSelect = document.getElementById('assignUserSelect');
   uTbody.innerHTML = '';
   if (aTbody) aTbody.innerHTML = '';
+  if (assignUserSelect) assignUserSelect.innerHTML = '<option value="">Selecciona operario...</option>';
 
+  const usersMap = {};
   if (usersRes.success) {
     usersRes.data.forEach(u => {
+      usersMap[u.id] = u.name || u.username;
       const clientName = u.clientId ? (clientsMap[u.clientId] || u.clientId) : 'Todos / Sin restringir';
 
       // Tabla de usuarios
       const trUser = document.createElement('tr');
       trUser.innerHTML = `
-        <td>${u.name || u.username}</td>
-        <td><code>${u.username}</code></td>
-        <td><span class="user-role-badge">${u.role}</span></td>
-        <td>${clientName}</td>
+        <td>${escapeHtml(u.name || u.username)}</td>
+        <td><code>${escapeHtml(u.username)}</code></td>
+        <td><span class="user-role-badge">${escapeHtml(u.role)}</span></td>
+        <td>${escapeHtml(clientName)}</td>
       `;
       uTbody.appendChild(trUser);
 
-      // Tabla de asignaciones (Operarios y Clientes)
-      if (aTbody) {
-        const trAssign = document.createElement('tr');
-        trAssign.innerHTML = `
-          <td><strong>${u.name || u.username}</strong> (<code>${u.username}</code>)</td>
-          <td><span class="user-role-badge">${u.role}</span></td>
-          <td>${u.role === 'superadmin' ? 'Acceso global' : clientName}</td>
-        `;
-        aTbody.appendChild(trAssign);
+      if (assignUserSelect && u.role === 'operator') {
+        const opt = document.createElement('option');
+        opt.value = u.id;
+        opt.textContent = `${u.name || u.username} (${u.username})`;
+        assignUserSelect.appendChild(opt);
       }
     });
   }
+
+  if (aTbody && assignRes && assignRes.success) {
+    assignRes.data.forEach(a => {
+      const trAssign = document.createElement('tr');
+      trAssign.innerHTML = `
+        <td><strong>${escapeHtml(usersMap[a.userId] || a.userId)}</strong></td>
+        <td>${escapeHtml(clientsMap[a.clientId] || a.clientId)}</td>
+        <td>${escapeHtml(a.taskNote || '-')}</td>
+        <td><button class="btn btn-outline-danger btn-sm" onclick="removeAssignment('${escapeHtml(a.id)}')">Quitar</button></td>
+      `;
+      aTbody.appendChild(trAssign);
+    });
+  }
   if (window.lucide) window.lucide.createIcons();
+}
+
+window.removeAssignment = async (assignmentId) => {
+  if (!confirm('¿Quitar esta asignación?')) return;
+  const res = await API.deleteAssignment(assignmentId);
+  if (res.success) {
+    await loadManageData();
+  } else {
+    alert(res.message || 'Error al eliminar asignación.');
+  }
+};
+
+async function handleCreateAssignment(e) {
+  e.preventDefault();
+  const data = {
+    userId: document.getElementById('assignUserSelect').value,
+    clientId: document.getElementById('assignClientSelect').value,
+    taskNote: document.getElementById('assignTaskNote').value.trim()
+  };
+
+  const res = await API.createAssignment(data);
+  if (res.success) {
+    document.getElementById('newAssignmentForm').reset();
+    await loadManageData();
+  } else {
+    alert(res.message || 'Error al guardar asignación.');
+  }
 }
 
 window.editSpecificTarget = async (clientId, current) => {
@@ -453,4 +614,23 @@ function openModal(id) {
 function closeModal(id) {
   const modal = document.getElementById(id);
   if (modal) modal.style.display = 'none';
+}
+
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function showToast(message, type = 'info') {
+  const container = document.getElementById('toastContainer');
+  if (!container) return;
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  toast.textContent = message;
+  container.appendChild(toast);
+  setTimeout(() => toast.remove(), 3500);
 }

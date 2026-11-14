@@ -6,6 +6,8 @@ export function createPostRoutes(postController) {
   router.get('/', postController.getPosts);
   router.post('/', postController.createPost);
   router.get('/stats', postController.getStats);
+  router.put('/:id', postController.updatePost);
+  router.delete('/:id', postController.deletePost);
   router.patch('/:id/status', postController.updateStatus);
   router.put('/target/:clientId', postController.updateTarget);
 

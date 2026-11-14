@@ -11,6 +11,7 @@ function setupSheets() {
     'Posts': ['id', 'clientId', 'title', 'caption', 'mediaType', 'mediaUrls', 'scheduledDate', 'status', 'rejectionReason', 'createdAt'],
     'Users': ['id', 'username', 'password', 'role', 'clientId', 'name'],
     'Clients': ['id', 'name', 'monthlyTarget', 'active'],
+    'Assignments': ['id', 'userId', 'clientId', 'taskNote', 'createdAt'],
     'Settings': ['key', 'value']
   };
 
@@ -50,6 +51,9 @@ function doGet(e) {
       case 'getUsers':
         result = { success: true, data: getRowsAsObjects('Users') };
         break;
+      case 'getAssignments':
+        result = { success: true, data: getRowsAsObjects('Assignments') };
+        break;
       default:
         result = { success: true, message: 'API Calendario de Post activa' };
     }
@@ -74,6 +78,12 @@ function doPost(e) {
       case 'savePost':
         result = savePost(payload.data);
         break;
+      case 'updatePost':
+        result = updatePost(payload.data);
+        break;
+      case 'deletePost':
+        result = deletePost(payload.data.id);
+        break;
       case 'updateStatus':
         result = updatePostStatus(payload.data.id, payload.data.status, payload.data.rejectionReason);
         break;
@@ -85,6 +95,12 @@ function doPost(e) {
         break;
       case 'updateTarget':
         result = updateClientTarget(payload.data.clientId, payload.data.monthlyTarget);
+        break;
+      case 'saveAssignment':
+        result = saveAssignment(payload.data);
+        break;
+      case 'deleteAssignment':
+        result = deleteAssignment(payload.data.id);
         break;
       default:
         result = { success: false, message: 'Acción POST desconocida' };
@@ -109,7 +125,12 @@ function getRowsAsObjects(sheetName, filterClientId = null) {
   for (let i = 1; i < data.length; i++) {
     const row = {};
     headers.forEach((header, colIdx) => {
-      row[header] = data[i][colIdx];
+      let value = data[i][colIdx];
+      // Normalizar fechas de Google Sheets para mantener formato YYYY-MM-DDTHH:mm
+      if (header === 'scheduledDate' && value instanceof Date) {
+        value = Utilities.formatDate(value, Session.getScriptTimeZone(), "yyyy-MM-dd'T'HH:mm");
+      }
+      row[header] = value;
     });
 
     if (filterClientId && row.clientId && String(row.clientId) !== String(filterClientId)) {
@@ -125,6 +146,7 @@ function savePost(post) {
   const id = post.id || Utilities.getUuid();
   const createdAt = post.createdAt || new Date().toISOString();
   
+  const lastRow = sheet.getLastRow() + 1;
   sheet.appendRow([
     id,
     post.clientId || '',
@@ -137,8 +159,44 @@ function savePost(post) {
     post.rejectionReason || '',
     createdAt
   ]);
+  // Forzar formato de texto plano en scheduledDate para evitar conversión automática de Sheets
+  sheet.getRange(lastRow, 7).setNumberFormat('@');
 
   return { success: true, id: id };
+}
+
+function updatePost(post) {
+  const sheet = SPREADSHEET.getSheetByName('Posts');
+  const data = sheet.getDataRange().getValues();
+
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][0]) === String(post.id)) {
+      const rowNum = i + 1;
+      sheet.getRange(rowNum, 2).setValue(post.clientId || data[i][1]);
+      sheet.getRange(rowNum, 3).setValue(post.title || '');
+      sheet.getRange(rowNum, 4).setValue(post.caption || '');
+      sheet.getRange(rowNum, 5).setValue(post.mediaType || 'image');
+      sheet.getRange(rowNum, 6).setValue(JSON.stringify(post.mediaUrls || []));
+      sheet.getRange(rowNum, 7).setNumberFormat('@').setValue(post.scheduledDate || '');
+      sheet.getRange(rowNum, 8).setValue(post.status || 'pending');
+      sheet.getRange(rowNum, 9).setValue('');
+      return { success: true, message: 'Post actualizado' };
+    }
+  }
+  return { success: false, message: 'Post no encontrado' };
+}
+
+function deletePost(postId) {
+  const sheet = SPREADSHEET.getSheetByName('Posts');
+  const data = sheet.getDataRange().getValues();
+
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][0]) === String(postId)) {
+      sheet.deleteRow(i + 1);
+      return { success: true, message: 'Post eliminado' };
+    }
+  }
+  return { success: false, message: 'Post no encontrado' };
 }
 
 function updatePostStatus(postId, status, reason = '') {
@@ -175,9 +233,98 @@ function saveClient(client) {
   return { success: true, id: id };
 }
 
+function updatePost(post) {
+  const sheet = SPREADSHEET.getSheetByName('Posts');
+  const data = sheet.getDataRange().getValues();
+
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][0]) === String(post.id)) {
+      const rowNum = i + 1;
+      sheet.getRange(rowNum, 2).setValue(post.clientId || data[i][1]);
+      sheet.getRange(rowNum, 3).setValue(post.title || '');
+      sheet.getRange(rowNum, 4).setValue(post.caption || '');
+      sheet.getRange(rowNum, 5).setValue(post.mediaType || 'image');
+      sheet.getRange(rowNum, 6).setValue(JSON.stringify(post.mediaUrls || []));
+      sheet.getRange(rowNum, 7).setNumberFormat('@').setValue(post.scheduledDate || '');
+      sheet.getRange(rowNum, 8).setValue(post.status || 'pending');
+      sheet.getRange(rowNum, 9).setValue('');
+      return { success: true, message: 'Post actualizado' };
+    }
+  }
+  return { success: false, message: 'Post no encontrado' };
+}
+
+function deletePost(postId) {
+  const sheet = SPREADSHEET.getSheetByName('Posts');
+  const data = sheet.getDataRange().getValues();
+
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][0]) === String(postId)) {
+      sheet.deleteRow(i + 1);
+      return { success: true, message: 'Post eliminado' };
+    }
+  }
+  return { success: false, message: 'Post no encontrado' };
+}
+
 function saveUser(user) {
   const sheet = SPREADSHEET.getSheetByName('Users');
   const id = user.id || Utilities.getUuid();
   sheet.appendRow([id, user.username, user.password, user.role, user.clientId || '', user.name || '']);
   return { success: true, id: id };
+}
+
+function saveAssignment(assignment) {
+  const sheet = SPREADSHEET.getSheetByName('Assignments');
+  const id = assignment.id || Utilities.getUuid();
+  const createdAt = assignment.createdAt || new Date().toISOString();
+  sheet.appendRow([id, assignment.userId || '', assignment.clientId || '', assignment.taskNote || '', createdAt]);
+  return { success: true, id: id };
+}
+
+function deleteAssignment(assignmentId) {
+  const sheet = SPREADSHEET.getSheetByName('Assignments');
+  const data = sheet.getDataRange().getValues();
+
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][0]) === String(assignmentId)) {
+      sheet.deleteRow(i + 1);
+      return { success: true, message: 'Asignación eliminada' };
+    }
+  }
+  return { success: false, message: 'Asignación no encontrada' };
+}
+
+function updatePost(post) {
+  const sheet = SPREADSHEET.getSheetByName('Posts');
+  const data = sheet.getDataRange().getValues();
+
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][0]) === String(post.id)) {
+      const rowNum = i + 1;
+      sheet.getRange(rowNum, 2).setValue(post.clientId || data[i][1]);
+      sheet.getRange(rowNum, 3).setValue(post.title || '');
+      sheet.getRange(rowNum, 4).setValue(post.caption || '');
+      sheet.getRange(rowNum, 5).setValue(post.mediaType || 'image');
+      sheet.getRange(rowNum, 6).setValue(JSON.stringify(post.mediaUrls || []));
+      sheet.getRange(rowNum, 7).setNumberFormat('@').setValue(post.scheduledDate || '');
+      sheet.getRange(rowNum, 8).setValue(post.status || 'pending');
+      sheet.getRange(rowNum, 9).setValue('');
+      return { success: true, message: 'Post actualizado' };
+    }
+  }
+  return { success: false, message: 'Post no encontrado' };
+}
+
+function deletePost(postId) {
+  const sheet = SPREADSHEET.getSheetByName('Posts');
+  const data = sheet.getDataRange().getValues();
+
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][0]) === String(postId)) {
+      sheet.deleteRow(i + 1);
+      return { success: true, message: 'Post eliminado' };
+    }
+  }
+  return { success: false, message: 'Post no encontrado' };
 }

@@ -8,6 +8,9 @@ export function createAuthRoutes(authController) {
   router.post('/clients', authController.createClient);
   router.get('/users', authController.getUsers);
   router.post('/users', authController.createUser);
+  router.get('/assignments', authController.getAssignments);
+  router.post('/assignments', authController.createAssignment);
+  router.delete('/assignments/:id', authController.deleteAssignment);
 
   return router;
 }

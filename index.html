@@ -58,8 +58,8 @@
         </button>
       </form>
 
-      <!-- Accesos Rápidos de Prueba -->
-      <div class="quick-access">
+      <!-- Accesos Rápidos de Prueba (solo visible en entorno local) -->
+      <div id="quickAccessDemo" class="quick-access" style="display: none;">
         <span class="quick-access-label">Acceso de prueba rápido:</span>
         <div class="quick-btns">
           <button type="button" class="btn-demo" data-user="admin" data-pass="123">Superadmin</button>
@@ -72,9 +72,10 @@
 
   <!-- APLICACIÓN PRINCIPAL CON MENÚ LATERAL -->
   <div id="appScreen" class="app-layout" style="display: none;">
+    <div id="sidebarBackdrop" class="sidebar-backdrop"></div>
     
     <!-- MENÚ LATERAL (SIDEBAR) -->
-    <aside class="app-sidebar">
+    <aside id="appSidebar" class="app-sidebar">
       <div class="sidebar-header">
         <div class="brand-logo-text small">
           <span class="logo-bold">ADRIAN</span>
@@ -135,6 +136,9 @@
       <!-- TOPBAR -->
       <header class="app-topbar">
         <div class="topbar-left">
+          <button id="mobileMenuBtn" type="button" class="mobile-menu-btn" aria-label="Abrir menú">
+            <i data-lucide="menu"></i>
+          </button>
           <!-- Selector de Cliente -->
           <div id="clientSelectorWrap" class="client-pill-wrapper">
             <i data-lucide="briefcase"></i>
@@ -233,7 +237,7 @@
   <div id="postModal" class="modal-overlay" style="display: none;">
     <div class="modal-card">
       <div class="modal-header">
-        <h3 class="modal-title">Programar Nuevo Post</h3>
+        <h3 id="postModalTitle" class="modal-title">Programar Nuevo Post</h3>
         <button type="button" class="modal-close" data-close="postModal"><i data-lucide="x"></i></button>
       </div>
       <form id="postForm" class="modal-form">
@@ -278,7 +282,7 @@
           <button type="button" class="btn btn-secondary" data-close="postModal">Cancelar</button>
           <button type="submit" class="btn btn-primary">
             <i data-lucide="calendar-plus"></i>
-            <span>Programar Post</span>
+            <span id="postSubmitLabel">Programar Post</span>
           </button>
         </div>
       </form>
@@ -326,6 +330,14 @@
       </div>
 
       <div class="detail-footer" id="detailActionButtons">
+        <button id="editPostBtn" class="btn btn-secondary btn-pill" style="display: none;">
+          <i data-lucide="pencil"></i>
+          <span>Editar</span>
+        </button>
+        <button id="deletePostBtn" class="btn btn-outline-danger btn-pill" style="display: none;">
+          <i data-lucide="trash-2"></i>
+          <span>Eliminar</span>
+        </button>
         <button id="approvePostBtn" class="btn btn-success btn-pill">
           <i data-lucide="check"></i>
           <span>Aprobar Post</span>
@@ -421,25 +433,38 @@
 
       <!-- TAB 3: ASIGNACIÓN DE TAREAS Y CLIENTES A OPERARIOS -->
       <div id="assignmentsTab" class="tab-pane">
-        <div class="mini-form">
-          <h4>Asignaciones de Trabajo</h4>
-          <p class="form-hint" style="margin-bottom: 12px;">Aquí puedes ver qué clientes y operarios están configurados en el sistema para colaborar.</p>
-          <div class="table-wrapper">
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th>Operario / Usuario</th>
-                  <th>Rol</th>
-                  <th>Asignación Actual</th>
-                </tr>
-              </thead>
-              <tbody id="assignmentsTableBody"></tbody>
-            </table>
+        <form id="newAssignmentForm" class="mini-form">
+          <h4>Asignar Cliente / Tarea a Operario</h4>
+          <div class="form-row-3">
+            <select id="assignUserSelect" class="form-input" required>
+              <option value="">Selecciona operario...</option>
+            </select>
+            <select id="assignClientSelect" class="form-input" required>
+              <option value="">Selecciona cliente...</option>
+            </select>
+            <input type="text" id="assignTaskNote" class="form-input" placeholder="Nota o tarea (ej. Reels mensuales)">
           </div>
+          <button type="submit" class="btn btn-primary"><i data-lucide="clipboard-check"></i> Asignar</button>
+        </form>
+
+        <div class="table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Operario</th>
+                <th>Cliente</th>
+                <th>Tarea / Nota</th>
+                <th>Acción</th>
+              </tr>
+            </thead>
+            <tbody id="assignmentsTableBody"></tbody>
+          </table>
         </div>
       </div>
     </div>
   </div>
+
+  <div id="toastContainer" class="toast-container"></div>
 
   <script src="js/api.js"></script>
   <script src="js/auth.js"></script>
