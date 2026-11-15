@@ -104,6 +104,14 @@ const API = {
     return await this.gasPost('saveClient', clientData);
   },
 
+  async updateClient(clientData) {
+    return await this.gasPost('updateClient', clientData);
+  },
+
+  async deleteClient(clientId) {
+    return await this.gasPost('deleteClient', { id: clientId });
+  },
+
   async getUsers() {
     return await this.gasGet('getUsers');
   },
@@ -114,6 +122,10 @@ const API = {
 
   async updateUser(userData) {
     return await this.gasPost('updateUser', userData);
+  },
+
+  async deleteUser(userId) {
+    return await this.gasPost('deleteUser', { id: userId });
   },
 
   async getAssignments() {

@@ -408,7 +408,7 @@
       <!-- TAB 1: CLIENTES -->
       <div id="clientsTab" class="tab-pane active">
         <form id="newClientForm" class="mini-form">
-          <h4>Crear Nuevo Cliente</h4>
+          <h4 id="clientFormTitle">Crear Nuevo Cliente</h4>
           <div class="form-row">
             <div class="mini-field">
               <label for="newClientName">Nombre de la marca o cliente</label>
@@ -419,8 +419,9 @@
               <input type="number" id="newClientTarget" class="form-input" placeholder="Ej. 15" min="1" required>
             </div>
           </div>
-          <div style="margin-top: 12px;">
-            <button type="submit" class="btn btn-primary"><i data-lucide="plus"></i> Crear Cliente</button>
+          <div style="margin-top: 12px; display: flex; gap: 10px; align-items: center;">
+            <button type="submit" class="btn btn-primary"><i data-lucide="plus"></i> <span id="clientSubmitLabel">Crear Cliente</span></button>
+            <button type="button" id="cancelEditClientBtn" class="btn btn-secondary" style="display: none;">Cancelar edición</button>
           </div>
         </form>
 
@@ -543,6 +544,7 @@
   <script src="js/api.js"></script>
   <script src="js/auth.js"></script>
   <script src="js/calendar.js"></script>
+  <script src="js/manage.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

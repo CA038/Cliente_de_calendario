@@ -112,11 +112,20 @@ function doPost(e) {
       case 'saveClient':
         result = saveClient(payload.data);
         break;
+      case 'updateClient':
+        result = updateClient(payload.data);
+        break;
+      case 'deleteClient':
+        result = deleteClient(payload.data.id);
+        break;
       case 'saveUser':
         result = saveUser(payload.data);
         break;
       case 'updateUser':
         result = updateUser(payload.data);
+        break;
+      case 'deleteUser':
+        result = deleteUser(payload.data.id);
         break;
       case 'updateTarget':
         result = updateClientTarget(payload.data.clientId, payload.data.monthlyTarget);
@@ -258,6 +267,34 @@ function saveClient(client) {
   return { success: true, id: id };
 }
 
+function updateClient(client) {
+  const sheet = SPREADSHEET.getSheetByName('Clients');
+  const data = sheet.getDataRange().getValues();
+
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][0]) === String(client.id)) {
+      const rowNum = i + 1;
+      sheet.getRange(rowNum, 2).setValue(client.name || data[i][1]);
+      sheet.getRange(rowNum, 3).setValue(Number(client.monthlyTarget || 0));
+      return { success: true, message: 'Cliente actualizado' };
+    }
+  }
+  return { success: false, message: 'Cliente no encontrado' };
+}
+
+function deleteClient(clientId) {
+  const sheet = SPREADSHEET.getSheetByName('Clients');
+  const data = sheet.getDataRange().getValues();
+
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][0]) === String(clientId)) {
+      sheet.deleteRow(i + 1);
+      return { success: true, message: 'Cliente eliminado' };
+    }
+  }
+  return { success: false, message: 'Cliente no encontrado' };
+}
+
 function updatePost(post) {
   const sheet = SPREADSHEET.getSheetByName('Posts');
   const data = sheet.getDataRange().getValues();
@@ -307,13 +344,26 @@ function updateUser(user) {
     if (String(data[i][0]) === String(user.id)) {
       const rowNum = i + 1;
       sheet.getRange(rowNum, 2).setValue(user.username || data[i][1]);
-      if (user.password !== undefined && String(user.password).trim() !== '') {
+      if (user.password !== undefined) {
         sheet.getRange(rowNum, 3).setValue(String(user.password));
       }
       sheet.getRange(rowNum, 4).setValue(user.role || data[i][3]);
       sheet.getRange(rowNum, 5).setValue(user.clientId !== undefined ? user.clientId : data[i][4]);
       sheet.getRange(rowNum, 6).setValue(user.name !== undefined ? user.name : data[i][5]);
       return { success: true, message: 'Usuario actualizado' };
+    }
+  }
+  return { success: false, message: 'Usuario no encontrado' };
+}
+
+function deleteUser(userId) {
+  const sheet = SPREADSHEET.getSheetByName('Users');
+  const data = sheet.getDataRange().getValues();
+
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][0]) === String(userId)) {
+      sheet.deleteRow(i + 1);
+      return { success: true, message: 'Usuario eliminado' };
     }
   }
   return { success: false, message: 'Usuario no encontrado' };
