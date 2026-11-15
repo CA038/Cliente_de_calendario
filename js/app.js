@@ -231,6 +231,11 @@ function setupEventListeners() {
 
   document.getElementById('newClientForm').addEventListener('submit', handleCreateClient);
   document.getElementById('newUserForm').addEventListener('submit', handleCreateUser);
+  const newUserRoleSelect = document.getElementById('newUserRole');
+  if (newUserRoleSelect) {
+    newUserRoleSelect.addEventListener('change', syncUserRoleClientField);
+    syncUserRoleClientField();
+  }
   const cancelEditUserBtn = document.getElementById('cancelEditUserBtn');
   if (cancelEditUserBtn) {
     cancelEditUserBtn.addEventListener('click', resetUserForm);
@@ -693,8 +698,11 @@ async function loadManageData() {
 
   const cTbody = document.getElementById('clientsTableBody');
   const assignClientSelect = document.getElementById('assignClientSelect');
+  const userClientSelect = document.getElementById('newUserClientSelect');
+  const prevUserClientVal = userClientSelect ? userClientSelect.value : '';
   cTbody.innerHTML = '';
   if (assignClientSelect) assignClientSelect.innerHTML = '<option value="">Selecciona cliente...</option>';
+  if (userClientSelect) userClientSelect.innerHTML = '<option value="">Selecciona qué calendario verá...</option>';
 
   const clientsMap = {};
   if (clientsRes.success) {
@@ -714,8 +722,19 @@ async function loadManageData() {
         opt.textContent = c.name;
         assignClientSelect.appendChild(opt);
       }
+
+      if (userClientSelect) {
+        const userOpt = document.createElement('option');
+        userOpt.value = c.id;
+        userOpt.textContent = c.name;
+        userClientSelect.appendChild(userOpt);
+      }
     });
   }
+  if (userClientSelect && prevUserClientVal) {
+    userClientSelect.value = prevUserClientVal;
+  }
+  syncUserRoleClientField();
 
   const uTbody = document.getElementById('usersTableBody');
   const aTbody = document.getElementById('assignmentsTableBody');
@@ -818,6 +837,29 @@ async function handleCreateClient(e) {
   }
 }
 
+function syncUserRoleClientField() {
+  const roleEl = document.getElementById('newUserRole');
+  const clientSelect = document.getElementById('newUserClientSelect');
+  const clientLabel = document.getElementById('newUserClientLabel');
+  if (!roleEl || !clientSelect) return;
+
+  const isClient = roleEl.value === 'client';
+  const defaultOpt = clientSelect.querySelector('option[value=""]');
+
+  if (isClient) {
+    if (clientLabel) clientLabel.textContent = 'Calendario / Cliente que verá';
+    if (defaultOpt) defaultOpt.textContent = 'Selecciona qué calendario verá...';
+    clientSelect.disabled = false;
+    clientSelect.required = true;
+  } else {
+    if (clientLabel) clientLabel.textContent = 'Cliente asignado';
+    if (defaultOpt) defaultOpt.textContent = 'Todos los calendarios (no requiere asignar uno)';
+    clientSelect.value = '';
+    clientSelect.required = false;
+    clientSelect.disabled = true;
+  }
+}
+
 function resetUserForm() {
   editingUserId = null;
   document.getElementById('newUserForm').reset();
@@ -825,6 +867,7 @@ function resetUserForm() {
   document.getElementById('userSubmitLabel').textContent = 'Guardar Usuario';
   const cancelBtn = document.getElementById('cancelEditUserBtn');
   if (cancelBtn) cancelBtn.style.display = 'none';
+  syncUserRoleClientField();
 }
 
 window.editUser = (userId) => {
@@ -835,6 +878,7 @@ window.editUser = (userId) => {
   document.getElementById('newUserUsername').value = user.username || '';
   document.getElementById('newUserPassword').value = user.password || '';
   document.getElementById('newUserRole').value = user.role || 'client';
+  syncUserRoleClientField();
   document.getElementById('newUserClientSelect').value = user.clientId || '';
   document.getElementById('userFormTitle').textContent = `Editando Usuario: ${user.username}`;
   document.getElementById('userSubmitLabel').textContent = 'Actualizar Usuario';
@@ -848,12 +892,20 @@ async function handleCreateUser(e) {
   if (submitBtn) submitBtn.disabled = true;
 
   try {
+    const role = document.getElementById('newUserRole').value;
+    const clientId = role === 'client' ? document.getElementById('newUserClientSelect').value : '';
+
+    if (role === 'client' && !clientId) {
+      showToast('Selecciona el calendario / cliente que verá este usuario.', 'error');
+      return;
+    }
+
     const userData = {
       name: document.getElementById('newUserName').value.trim(),
       username: document.getElementById('newUserUsername').value.trim(),
       password: document.getElementById('newUserPassword').value.trim(),
-      role: document.getElementById('newUserRole').value,
-      clientId: document.getElementById('newUserClientSelect').value
+      role,
+      clientId
     };
 
     const res = editingUserId
