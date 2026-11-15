@@ -211,40 +211,6 @@ function savePost(post) {
   return { success: true, id: id };
 }
 
-function updatePost(post) {
-  const sheet = SPREADSHEET.getSheetByName('Posts');
-  const data = sheet.getDataRange().getValues();
-
-  for (let i = 1; i < data.length; i++) {
-    if (String(data[i][0]) === String(post.id)) {
-      const rowNum = i + 1;
-      sheet.getRange(rowNum, 2).setValue(post.clientId || data[i][1]);
-      sheet.getRange(rowNum, 3).setValue(post.title || '');
-      sheet.getRange(rowNum, 4).setValue(post.caption || '');
-      sheet.getRange(rowNum, 5).setValue(post.mediaType || 'image');
-      sheet.getRange(rowNum, 6).setValue(JSON.stringify(post.mediaUrls || []));
-      sheet.getRange(rowNum, 7).setNumberFormat('@').setValue(post.scheduledDate || '');
-      sheet.getRange(rowNum, 8).setValue(post.status || 'pending');
-      sheet.getRange(rowNum, 9).setValue('');
-      return { success: true, message: 'Post actualizado' };
-    }
-  }
-  return { success: false, message: 'Post no encontrado' };
-}
-
-function deletePost(postId) {
-  const sheet = SPREADSHEET.getSheetByName('Posts');
-  const data = sheet.getDataRange().getValues();
-
-  for (let i = 1; i < data.length; i++) {
-    if (String(data[i][0]) === String(postId)) {
-      sheet.deleteRow(i + 1);
-      return { success: true, message: 'Post eliminado' };
-    }
-  }
-  return { success: false, message: 'Post no encontrado' };
-}
-
 function updatePostStatus(postId, status, reason = '') {
   const sheet = SPREADSHEET.getSheetByName('Posts');
   const data = sheet.getDataRange().getValues();
@@ -330,40 +296,6 @@ function deleteClient(clientId) {
     }
   }
   return { success: false, message: 'Cliente no encontrado' };
-}
-
-function updatePost(post) {
-  const sheet = SPREADSHEET.getSheetByName('Posts');
-  const data = sheet.getDataRange().getValues();
-
-  for (let i = 1; i < data.length; i++) {
-    if (String(data[i][0]) === String(post.id)) {
-      const rowNum = i + 1;
-      sheet.getRange(rowNum, 2).setValue(post.clientId || data[i][1]);
-      sheet.getRange(rowNum, 3).setValue(post.title || '');
-      sheet.getRange(rowNum, 4).setValue(post.caption || '');
-      sheet.getRange(rowNum, 5).setValue(post.mediaType || 'image');
-      sheet.getRange(rowNum, 6).setValue(JSON.stringify(post.mediaUrls || []));
-      sheet.getRange(rowNum, 7).setNumberFormat('@').setValue(post.scheduledDate || '');
-      sheet.getRange(rowNum, 8).setValue(post.status || 'pending');
-      sheet.getRange(rowNum, 9).setValue('');
-      return { success: true, message: 'Post actualizado' };
-    }
-  }
-  return { success: false, message: 'Post no encontrado' };
-}
-
-function deletePost(postId) {
-  const sheet = SPREADSHEET.getSheetByName('Posts');
-  const data = sheet.getDataRange().getValues();
-
-  for (let i = 1; i < data.length; i++) {
-    if (String(data[i][0]) === String(postId)) {
-      sheet.deleteRow(i + 1);
-      return { success: true, message: 'Post eliminado' };
-    }
-  }
-  return { success: false, message: 'Post no encontrado' };
 }
 
 function saveUser(user) {
@@ -658,18 +590,30 @@ function uploadMediaToDrive(data) {
 function updatePost(post) {
   const sheet = SPREADSHEET.getSheetByName('Posts');
   const data = sheet.getDataRange().getValues();
+  if (data.length <= 1) return { success: false, message: 'Post no encontrado' };
+
+  const headers = data[0];
+  const col = name => headers.indexOf(name) + 1;
+  const idCol = col('id') || 1;
 
   for (let i = 1; i < data.length; i++) {
-    if (String(data[i][0]) === String(post.id)) {
+    if (String(data[i][idCol - 1]).trim() === String(post.id).trim()) {
       const rowNum = i + 1;
-      sheet.getRange(rowNum, 2).setValue(post.clientId || data[i][1]);
-      sheet.getRange(rowNum, 3).setValue(post.title || '');
-      sheet.getRange(rowNum, 4).setValue(post.caption || '');
-      sheet.getRange(rowNum, 5).setValue(post.mediaType || 'image');
-      sheet.getRange(rowNum, 6).setValue(JSON.stringify(post.mediaUrls || []));
-      sheet.getRange(rowNum, 7).setNumberFormat('@').setValue(post.scheduledDate || '');
-      sheet.getRange(rowNum, 8).setValue(post.status || 'pending');
-      sheet.getRange(rowNum, 9).setValue('');
+      const setCol = (name, fallbackIdx, val, asText) => {
+        const c = col(name) || fallbackIdx;
+        const range = sheet.getRange(rowNum, c);
+        if (asText) range.setNumberFormat('@');
+        range.setValue(val);
+      };
+
+      setCol('clientId', 2, post.clientId || data[i][(col('clientId') || 2) - 1]);
+      setCol('title', 3, post.title !== undefined ? post.title : '');
+      setCol('caption', 4, post.caption !== undefined ? post.caption : '');
+      setCol('mediaType', 5, post.mediaType || 'image');
+      setCol('mediaUrls', 6, JSON.stringify(post.mediaUrls || []));
+      setCol('scheduledDate', 7, post.scheduledDate || '', true);
+      setCol('status', 8, post.status || 'pending');
+      setCol('rejectionReason', 9, '');
       return { success: true, message: 'Post actualizado' };
     }
   }
