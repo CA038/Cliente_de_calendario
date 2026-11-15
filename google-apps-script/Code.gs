@@ -7,6 +7,9 @@ const SPREADSHEET = SpreadsheetApp.getActiveSpreadsheet();
 
 // Inicializa las hojas necesarias con sus encabezados si no existen
 function setupSheets() {
+  const cache = CacheService.getScriptCache();
+  if (cache.get('sheets_ready_v2')) return;
+
   const schemas = {
     'Posts': ['id', 'clientId', 'title', 'caption', 'mediaType', 'mediaUrls', 'scheduledDate', 'status', 'rejectionReason', 'createdAt'],
     'Users': ['id', 'username', 'password', 'role', 'clientId', 'name'],
@@ -38,6 +41,7 @@ function setupSheets() {
       }
     }
   }
+  cache.put('sheets_ready_v2', '1', 1800);
 }
 
 // Endpoint HTTP GET
@@ -75,6 +79,9 @@ function doGet(e) {
         break;
       case 'getNotifications':
         result = { success: true, data: getNotificationsForRequest(e.parameter) };
+        break;
+      case 'getDashboardData':
+        result = { success: true, data: getDashboardData(e.parameter) };
         break;
       default:
         result = { success: true, message: 'API Calendario de Post activa' };
@@ -539,6 +546,34 @@ function getNotificationsForRequest(params) {
   }
 
   return items.reverse().slice(0, 30);
+}
+
+function getDashboardData(params) {
+  const clients = getClientsForRequest(params);
+  const role = params.role || '';
+  let effectiveClientId = '';
+
+  if (role === 'client') {
+    effectiveClientId = params.clientId || '';
+  } else {
+    effectiveClientId = params.clientId || (clients.length > 0 ? clients[0].id : '');
+  }
+
+  const posts = effectiveClientId
+    ? getPostsForRequest({ role: role, userId: params.userId, clientId: effectiveClientId })
+    : [];
+  const stats = effectiveClientId
+    ? getMonthlyStats(effectiveClientId, params.yearMonth)
+    : null;
+  const notifications = getNotificationsForRequest(params);
+
+  return {
+    clients: clients,
+    activeClientId: effectiveClientId,
+    posts: posts,
+    stats: stats,
+    notifications: notifications
+  };
 }
 
 function markNotificationsRead(data) {

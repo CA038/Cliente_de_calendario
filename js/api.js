@@ -152,6 +152,17 @@ const API = {
     return await this.gasPost('markNotificationsRead', { ids });
   },
 
+  async getDashboardData(clientId, yearMonth) {
+    const user = Auth.getCurrentUser() || {};
+    const effectiveClient = user.role === 'client' ? (user.clientId || '') : (clientId || '');
+    return await this.gasGet('getDashboardData', {
+      clientId: effectiveClient,
+      yearMonth: yearMonth || '',
+      role: user.role || '',
+      userId: user.id || ''
+    });
+  },
+
   uploadMedia(file) {
     return new Promise((resolve, reject) => {
       const maxBytes = 20 * 1024 * 1024; // 20 MB

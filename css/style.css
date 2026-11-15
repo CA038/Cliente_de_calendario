@@ -875,6 +875,13 @@ body {
   font-style: italic;
 }
 
+.calendar-section.is-loading,
+.posts-list-section.is-loading {
+  opacity: 0.55;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
 /* RESPONSIVE */
 @media (max-width: 960px) {
   .mobile-menu-btn { display: inline-flex; align-items: center; justify-content: center; }

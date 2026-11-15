@@ -99,11 +99,67 @@ async function handleGoogleCredentialResponse(response) {
   }
 }
 
+function setCalendarLoading(isLoading) {
+  const cal = document.querySelector('.calendar-section');
+  const list = document.getElementById('postsListSection');
+  if (cal) cal.classList.toggle('is-loading', isLoading);
+  if (list) list.classList.toggle('is-loading', isLoading);
+}
+
+function applyMonthlyStats(s) {
+  if (!s) return;
+  document.getElementById('kpiTargetVal').textContent = `${s.monthlyTarget} / ${s.videoTarget || 0}`;
+  document.getElementById('kpiRemainingVal').textContent = s.remainingPosts;
+  const remVideosEl = document.getElementById('kpiRemainingVideosVal');
+  if (remVideosEl) remVideosEl.textContent = s.remainingVideos ?? 0;
+  document.getElementById('kpiApprovedVal').textContent = s.approvedCount;
+  document.getElementById('kpiScheduledVal').textContent = s.totalScheduled;
+  document.getElementById('kpiRejectedVal').textContent = s.rejectedCount;
+}
+
 async function showAppScreen() {
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('appScreen').style.display = 'flex';
 
   Auth.applyRolePermissions();
+  document.getElementById('currentMonthLabel').textContent = calendar.getMonthLabel();
+  const { yearMonth } = calendar.getCurrentMonthYear();
+  const user = Auth.getCurrentUser();
+  setCalendarLoading(true);
+
+  try {
+    const dashRes = await API.getDashboardData(activeClient, yearMonth);
+    if (dashRes && dashRes.success && dashRes.data && Array.isArray(dashRes.data.clients)) {
+      const d = dashRes.data;
+      populateClientsUI(d.clients);
+      if (d.activeClientId) {
+        activeClient = d.activeClientId;
+        const clientSelect = document.getElementById('clientSelect');
+        if (clientSelect && user?.role !== 'client') clientSelect.value = activeClient;
+      }
+
+      if (user && user.role === 'client' && !activeClient) {
+        currentPosts = [];
+        calendar.render([]);
+        renderPostsList([]);
+      } else {
+        currentPosts = d.posts || [];
+        calendar.render(currentPosts);
+        renderPostsList(currentPosts);
+        applyMonthlyStats(d.stats);
+      }
+
+      if (user && user.role !== 'client' && Array.isArray(d.notifications)) {
+        renderNotifications(d.notifications);
+      }
+      return;
+    }
+  } catch (err) {
+    // Fallback al flujo tradicional si getDashboardData aún no está desplegado
+  } finally {
+    setCalendarLoading(false);
+  }
+
   await loadClients();
   await loadCalendarAndStats();
   loadNotifications();
@@ -352,11 +408,7 @@ async function handleLogin(e) {
   }
 }
 
-async function loadClients() {
-  const res = await API.getClients();
-  if (!res.success) return;
-
-  const clients = res.data || [];
+function populateClientsUI(clients) {
   const clientSelect = document.getElementById('clientSelect');
   const postClientSelect = document.getElementById('postClient');
   const userClientSelect = document.getElementById('newUserClientSelect');
@@ -399,6 +451,12 @@ async function loadClients() {
   } else {
     activeClient = null;
   }
+}
+
+async function loadClients() {
+  const res = await API.getClients();
+  if (!res.success) return;
+  populateClientsUI(res.data || []);
 }
 
 let currentPosts = [];
@@ -505,9 +563,14 @@ async function loadCalendarAndStats() {
     return;
   }
 
+  setCalendarLoading(true);
   try {
-    // Cargar Posts
-    const postsRes = await API.getPosts(activeClient);
+    // Cargar Posts y Métricas en paralelo
+    const [postsRes, statsRes] = await Promise.all([
+      API.getPosts(activeClient),
+      activeClient ? API.getStats(activeClient, yearMonth) : Promise.resolve(null)
+    ]);
+
     if (!postsRes.success) {
       showToast(postsRes.message || 'No se pudieron cargar los posts.', 'error');
     }
@@ -516,22 +579,13 @@ async function loadCalendarAndStats() {
     calendar.render(posts);
     renderPostsList(posts);
 
-    // Cargar Métricas y Faltantes
-    if (activeClient) {
-      const statsRes = await API.getStats(activeClient, yearMonth);
-      if (statsRes.success && statsRes.data) {
-        const s = statsRes.data;
-        document.getElementById('kpiTargetVal').textContent = `${s.monthlyTarget} / ${s.videoTarget || 0}`;
-        document.getElementById('kpiRemainingVal').textContent = s.remainingPosts;
-        const remVideosEl = document.getElementById('kpiRemainingVideosVal');
-        if (remVideosEl) remVideosEl.textContent = s.remainingVideos ?? 0;
-        document.getElementById('kpiApprovedVal').textContent = s.approvedCount;
-        document.getElementById('kpiScheduledVal').textContent = s.totalScheduled;
-        document.getElementById('kpiRejectedVal').textContent = s.rejectedCount;
-      }
+    if (statsRes && statsRes.success && statsRes.data) {
+      applyMonthlyStats(statsRes.data);
     }
   } catch (err) {
     showToast(`Error de conexión al cargar calendario: ${err.message}`, 'error');
+  } finally {
+    setCalendarLoading(false);
   }
 }
 
