@@ -154,6 +154,12 @@
             <select id="clientSelect" class="client-select"></select>
           </div>
 
+          <!-- Marca fija para rol Cliente -->
+          <div id="clientBrandBadge" class="client-brand-badge" style="display: none;">
+            <i data-lucide="briefcase"></i>
+            <span id="clientBrandName">Mi Calendario</span>
+          </div>
+
           <!-- Navegación de Mes -->
           <div class="month-navigator">
             <button id="prevMonthBtn" class="nav-btn" aria-label="Mes anterior">
@@ -167,6 +173,17 @@
         </div>
 
         <div class="topbar-right">
+          <!-- Selector de Vista: Calendario / Lista de Posts -->
+          <div class="view-switcher" role="group" aria-label="Cambiar vista">
+            <button type="button" class="view-btn active" data-view="calendar">
+              <i data-lucide="calendar"></i>
+              <span>Calendario</span>
+            </button>
+            <button type="button" class="view-btn" data-view="list">
+              <i data-lucide="layout-list"></i>
+              <span>Lista de Posts</span>
+            </button>
+          </div>
           <!-- Botón Rápido Nuevo Post -->
           <button id="newPostBtn" class="btn btn-primary btn-pill admin-action">
             <i data-lucide="plus"></i>
@@ -238,6 +255,11 @@
           <!-- Render dinámico desde calendar.js -->
         </div>
       </main>
+
+      <!-- VISTA LISTA DE POSTS (ideal para clientes y revisión rápida) -->
+      <section id="postsListSection" class="posts-list-section" style="display: none;">
+        <div id="postsListGrid" class="posts-list-grid"></div>
+      </section>
     </div>
   </div>
 
@@ -388,8 +410,16 @@
         <form id="newClientForm" class="mini-form">
           <h4>Crear Nuevo Cliente</h4>
           <div class="form-row">
-            <input type="text" id="newClientName" class="form-input" placeholder="Nombre de la marca o cliente" required>
-            <input type="number" id="newClientTarget" class="form-input" placeholder="Meta mensual de posts (ej. 15)" min="1" required>
+            <div class="mini-field">
+              <label for="newClientName">Nombre de la marca o cliente</label>
+              <input type="text" id="newClientName" class="form-input" placeholder="Ej. Panadería Sol" required>
+            </div>
+            <div class="mini-field">
+              <label for="newClientTarget">Meta mensual de posts</label>
+              <input type="number" id="newClientTarget" class="form-input" placeholder="Ej. 15" min="1" required>
+            </div>
+          </div>
+          <div style="margin-top: 12px;">
             <button type="submit" class="btn btn-primary"><i data-lucide="plus"></i> Crear Cliente</button>
           </div>
         </form>
@@ -413,19 +443,34 @@
         <form id="newUserForm" class="mini-form">
           <h4 id="userFormTitle">Crear Nuevo Usuario</h4>
           <div class="form-row-3">
-            <input type="text" id="newUserName" class="form-input" placeholder="Nombre completo" required>
-            <input type="text" id="newUserUsername" class="form-input" placeholder="Correo de Google o usuario" required>
-            <input type="text" id="newUserPassword" class="form-input" placeholder="Contraseña (opcional si usa Google)">
+            <div class="mini-field">
+              <label for="newUserName">Nombre completo</label>
+              <input type="text" id="newUserName" class="form-input" placeholder="Ej. Laura Gómez" required>
+            </div>
+            <div class="mini-field">
+              <label for="newUserUsername">Correo de Google o usuario</label>
+              <input type="text" id="newUserUsername" class="form-input" placeholder="correo@gmail.com o usuario" required>
+            </div>
+            <div class="mini-field">
+              <label for="newUserPassword">Contraseña</label>
+              <input type="text" id="newUserPassword" class="form-input" placeholder="Opcional si usa Google">
+            </div>
           </div>
           <div class="form-row-2">
-            <select id="newUserRole" class="form-input" required>
-              <option value="superadmin">Superusuario (Control Total)</option>
-              <option value="operator">Operario (Creación y Asignación)</option>
-              <option value="client">Cliente (Aprobación de su calendario)</option>
-            </select>
-            <select id="newUserClientSelect" class="form-input">
-              <option value="">Sin cliente asignado (para admin/operario)</option>
-            </select>
+            <div class="mini-field">
+              <label for="newUserRole">Nivel / Rol</label>
+              <select id="newUserRole" class="form-input" required>
+                <option value="superadmin">Superusuario (Control Total)</option>
+                <option value="operator">Operario (Creación y Asignación)</option>
+                <option value="client">Cliente (Aprobación de su calendario)</option>
+              </select>
+            </div>
+            <div class="mini-field">
+              <label for="newUserClientSelect">Cliente asignado</label>
+              <select id="newUserClientSelect" class="form-input">
+                <option value="">Sin cliente asignado (para admin/operario)</option>
+              </select>
+            </div>
           </div>
           <div style="display: flex; gap: 10px; align-items: center;">
             <button type="submit" class="btn btn-primary"><i data-lucide="user-plus"></i> <span id="userSubmitLabel">Guardar Usuario</span></button>
@@ -455,13 +500,22 @@
         <form id="newAssignmentForm" class="mini-form">
           <h4>Asignar Cliente / Tarea a Operario</h4>
           <div class="form-row-3">
-            <select id="assignUserSelect" class="form-input" required>
-              <option value="">Selecciona operario...</option>
-            </select>
-            <select id="assignClientSelect" class="form-input" required>
-              <option value="">Selecciona cliente...</option>
-            </select>
-            <input type="text" id="assignTaskNote" class="form-input" placeholder="Nota o tarea (ej. Reels mensuales)">
+            <div class="mini-field">
+              <label for="assignUserSelect">Operario</label>
+              <select id="assignUserSelect" class="form-input" required>
+                <option value="">Selecciona operario...</option>
+              </select>
+            </div>
+            <div class="mini-field">
+              <label for="assignClientSelect">Cliente</label>
+              <select id="assignClientSelect" class="form-input" required>
+                <option value="">Selecciona cliente...</option>
+              </select>
+            </div>
+            <div class="mini-field">
+              <label for="assignTaskNote">Tarea o nota</label>
+              <input type="text" id="assignTaskNote" class="form-input" placeholder="Ej. Reels mensuales">
+            </div>
           </div>
           <button type="submit" class="btn btn-primary"><i data-lucide="clipboard-check"></i> Asignar</button>
         </form>

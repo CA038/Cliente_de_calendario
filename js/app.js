@@ -204,6 +204,13 @@ function setupEventListeners() {
     loadCalendarAndStats();
   });
 
+  // Selector de Vista (Calendario / Lista de Posts)
+  document.querySelectorAll('.view-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      switchCalendarView(btn.dataset.view);
+    });
+  });
+
   // Botón Nuevo Post en Topbar
   const newPostBtn = document.getElementById('newPostBtn');
   if (newPostBtn) {
@@ -328,8 +335,17 @@ async function loadClients() {
     userClientSelect.appendChild(userOpt);
   });
 
-  if (user && user.role === 'client' && user.clientId) {
-    activeClient = user.clientId;
+  if (user && user.role === 'client') {
+    if (user.clientId) {
+      activeClient = user.clientId;
+      const assigned = clients.find(c => String(c.id) === String(user.clientId));
+      const brandNameEl = document.getElementById('clientBrandName');
+      if (brandNameEl) brandNameEl.textContent = assigned ? assigned.name : 'Mi Calendario';
+    } else {
+      activeClient = null;
+      const brandNameEl = document.getElementById('clientBrandName');
+      if (brandNameEl) brandNameEl.textContent = 'Sin cliente asignado';
+    }
   } else if (clients.length > 0) {
     activeClient = clients[0].id;
     clientSelect.value = activeClient;
@@ -338,9 +354,109 @@ async function loadClients() {
   }
 }
 
+let currentPosts = [];
+let currentCalendarView = 'calendar';
+
+function switchCalendarView(view) {
+  currentCalendarView = view === 'list' ? 'list' : 'calendar';
+  document.querySelectorAll('.view-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.view === currentCalendarView);
+  });
+
+  const calendarSection = document.querySelector('.calendar-section');
+  const postsListSection = document.getElementById('postsListSection');
+  if (calendarSection) {
+    calendarSection.style.display = currentCalendarView === 'calendar' ? '' : 'none';
+  }
+  if (postsListSection) {
+    postsListSection.style.display = currentCalendarView === 'list' ? 'block' : 'none';
+  }
+  if (currentCalendarView === 'list') {
+    renderPostsList(currentPosts);
+  }
+}
+
+function renderPostsList(posts) {
+  const grid = document.getElementById('postsListGrid');
+  if (!grid) return;
+
+  const user = Auth.getCurrentUser();
+  if (user && user.role === 'client' && !activeClient) {
+    grid.innerHTML = '<div class="posts-empty-state">Tu usuario aún no tiene un calendario/cliente asignado. Pide al administrador que te asigne uno.</div>';
+    return;
+  }
+
+  const { yearMonth } = calendar.getCurrentMonthYear();
+  const monthPosts = (posts || [])
+    .filter(p => String(p.scheduledDate || '').startsWith(yearMonth))
+    .sort((a, b) => String(a.scheduledDate || '').localeCompare(String(b.scheduledDate || '')));
+
+  if (monthPosts.length === 0) {
+    grid.innerHTML = '<div class="posts-empty-state">No hay posts programados para este mes.</div>';
+    return;
+  }
+
+  const statusLabels = {
+    approved: 'Aprobado',
+    rejected: 'Rechazado',
+    pending: 'Pendiente'
+  };
+
+  grid.innerHTML = '';
+  monthPosts.forEach(post => {
+    const card = document.createElement('article');
+    card.className = 'post-list-card';
+
+    const mediaUrls = Array.isArray(post.mediaUrls) ? post.mediaUrls : [];
+    const firstUrl = mediaUrls[0] || '';
+    const isVideo = post.mediaType === 'video' || /\.(mp4|mov|webm)(\?|$)/i.test(firstUrl);
+
+    let mediaHtml = '<div class="post-list-placeholder"><i data-lucide="image"></i><span>Sin archivo</span></div>';
+    if (firstUrl) {
+      mediaHtml = isVideo
+        ? `<video src="${escapeHtml(firstUrl)}" muted playsinline preload="metadata"></video>`
+        : `<img src="${escapeHtml(firstUrl)}" alt="${escapeHtml(post.title || 'Post')}" loading="lazy">`;
+    }
+
+    const status = post.status || 'pending';
+    const statusText = statusLabels[status] || 'Pendiente';
+
+    card.innerHTML = `
+      <div class="post-list-media">${mediaHtml}</div>
+      <div class="post-list-body">
+        <div class="post-list-meta">
+          <span>${escapeHtml(post.scheduledDate || '')}</span>
+          <span class="status-badge ${escapeHtml(status)}">${escapeHtml(statusText)}</span>
+        </div>
+        <h4 class="post-list-title">${escapeHtml(post.title || 'Sin título')}</h4>
+        <p class="post-list-caption">${escapeHtml(post.caption || '')}</p>
+        <div class="post-list-actions">
+          <button type="button" class="btn btn-secondary btn-sm view-post-detail-btn">
+            <i data-lucide="eye"></i> Revisar Post
+          </button>
+        </div>
+      </div>
+    `;
+
+    card.querySelector('.view-post-detail-btn').addEventListener('click', () => openPostDetail(post));
+    grid.appendChild(card);
+  });
+
+  if (window.lucide) window.lucide.createIcons();
+}
+
 async function loadCalendarAndStats() {
   document.getElementById('currentMonthLabel').textContent = calendar.getMonthLabel();
   const { yearMonth } = calendar.getCurrentMonthYear();
+  const user = Auth.getCurrentUser();
+
+  if (user && user.role === 'client' && !activeClient) {
+    currentPosts = [];
+    calendar.render([]);
+    renderPostsList([]);
+    showToast('Tu usuario no tiene un cliente asignado aún.', 'error');
+    return;
+  }
 
   try {
     // Cargar Posts
@@ -349,7 +465,9 @@ async function loadCalendarAndStats() {
       showToast(postsRes.message || 'No se pudieron cargar los posts.', 'error');
     }
     const posts = postsRes.success ? (postsRes.data || []) : [];
+    currentPosts = posts;
     calendar.render(posts);
+    renderPostsList(posts);
 
     // Cargar Métricas y Faltantes
     if (activeClient) {

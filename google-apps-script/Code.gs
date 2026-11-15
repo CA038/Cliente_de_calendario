@@ -421,8 +421,8 @@ function getClientsForRequest(params) {
   const userId = params.userId || '';
   const clientId = params.clientId || '';
 
-  if (role === 'client' && clientId) {
-    return clients.filter(c => String(c.id) === String(clientId));
+  if (role === 'client') {
+    return clientId ? clients.filter(c => String(c.id) === String(clientId)) : [];
   }
   if (role === 'operator' && userId) {
     const assignments = getRowsAsObjects('Assignments');
@@ -439,7 +439,16 @@ function getPostsForRequest(params) {
   const role = params.role || '';
   const userId = params.userId || '';
   const filterClientId = params.clientId || null;
+
+  if (role === 'client' && !filterClientId) {
+    return [];
+  }
+
   let posts = getRowsAsObjects('Posts', filterClientId);
+
+  if (role === 'client') {
+    posts = posts.filter(p => String(p.clientId) === String(filterClientId));
+  }
 
   if (role === 'operator' && userId) {
     const assignments = getRowsAsObjects('Assignments');
