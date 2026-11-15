@@ -9,6 +9,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <!-- Lucide Icons (Línea) -->
   <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Google Identity Services (Login con Google) -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📅</text></svg>">
   <link rel="stylesheet" href="css/style.css">
 </head>
@@ -31,7 +33,13 @@
       </div>
 
       <h2 class="login-title">Iniciar Sesión</h2>
-      <p class="login-desc">Ingresa tus credenciales para acceder al calendario</p>
+      <p class="login-desc">Ingresa con tu cuenta de Google o credenciales</p>
+
+      <div id="googleLoginWrap" class="google-login-wrap">
+        <div id="googleLoginBtn"></div>
+      </div>
+
+      <div class="login-divider"><span>o con usuario y contraseña</span></div>
 
       <form id="loginForm" class="auth-form">
         <div class="form-group">
@@ -406,8 +414,8 @@
           <h4 id="userFormTitle">Crear Nuevo Usuario</h4>
           <div class="form-row-3">
             <input type="text" id="newUserName" class="form-input" placeholder="Nombre completo" required>
-            <input type="text" id="newUserUsername" class="form-input" placeholder="Usuario de acceso" required>
-            <input type="text" id="newUserPassword" class="form-input" placeholder="Contraseña" required>
+            <input type="text" id="newUserUsername" class="form-input" placeholder="Correo de Google o usuario" required>
+            <input type="text" id="newUserPassword" class="form-input" placeholder="Contraseña (opcional si usa Google)">
           </div>
           <div class="form-row-2">
             <select id="newUserRole" class="form-input" required>

@@ -35,6 +35,69 @@ function showLoginScreen() {
   }
 
   if (window.lucide) window.lucide.createIcons();
+  initGoogleSignIn();
+}
+
+let googleSignInInitialized = false;
+
+function initGoogleSignIn(retries = 0) {
+  const btnContainer = document.getElementById('googleLoginBtn');
+  if (!btnContainer || !CONFIG.GOOGLE_CLIENT_ID) return;
+
+  if (!window.google?.accounts?.id) {
+    if (retries < 20) {
+      setTimeout(() => initGoogleSignIn(retries + 1), 250);
+    }
+    return;
+  }
+
+  if (!googleSignInInitialized) {
+    window.google.accounts.id.initialize({
+      client_id: CONFIG.GOOGLE_CLIENT_ID,
+      callback: handleGoogleCredentialResponse
+    });
+    googleSignInInitialized = true;
+  }
+
+  btnContainer.innerHTML = '';
+  window.google.accounts.id.renderButton(btnContainer, {
+    theme: 'outline',
+    size: 'large',
+    text: 'continue_with',
+    shape: 'pill',
+    width: 300,
+    locale: 'es'
+  });
+}
+
+async function handleGoogleCredentialResponse(response) {
+  const errorEl = document.getElementById('loginError');
+  if (errorEl) errorEl.style.display = 'none';
+
+  if (!response?.credential) {
+    if (errorEl) {
+      errorEl.textContent = 'No se recibió credencial de Google.';
+      errorEl.style.display = 'block';
+    }
+    return;
+  }
+
+  try {
+    const res = await API.loginWithGoogle(response.credential);
+    if (res.success && res.data?.user) {
+      Auth.setSession(res.data.user, '');
+      showAppScreen();
+      showToast('Sesión iniciada con Google', 'success');
+    } else if (errorEl) {
+      errorEl.textContent = res.message || 'No se pudo iniciar sesión con Google';
+      errorEl.style.display = 'block';
+    }
+  } catch (err) {
+    if (errorEl) {
+      errorEl.textContent = 'Error al conectar con el servidor: ' + err.message;
+      errorEl.style.display = 'block';
+    }
+  }
 }
 
 async function showAppScreen() {

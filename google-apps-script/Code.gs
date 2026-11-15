@@ -91,6 +91,9 @@ function doPost(e) {
       case 'login':
         result = loginUser(payload.data);
         break;
+      case 'loginWithGoogle':
+        result = loginWithGoogle(payload.data);
+        break;
       case 'uploadMedia':
         result = uploadMediaToDrive(payload.data);
         break;
@@ -335,6 +338,56 @@ function deleteAssignment(assignmentId) {
     }
   }
   return { success: false, message: 'Asignación no encontrada' };
+}
+
+const GOOGLE_CLIENT_ID = '1054676254470-5m9duhfa3f5tjekb6197nkok1soanf54.apps.googleusercontent.com';
+
+function loginWithGoogle(data) {
+  if (!data || !data.idToken) {
+    return { success: false, message: 'Token de Google requerido' };
+  }
+
+  let info;
+  try {
+    const res = UrlFetchApp.fetch(
+      'https://oauth2.googleapis.com/tokeninfo?id_token=' + encodeURIComponent(data.idToken),
+      { muteHttpExceptions: true }
+    );
+    if (res.getResponseCode() !== 200) {
+      return { success: false, message: 'Token de Google inválido o expirado' };
+    }
+    info = JSON.parse(res.getContentText());
+  } catch (err) {
+    return { success: false, message: 'Error al validar token con Google: ' + err.message };
+  }
+
+  if (info.aud !== GOOGLE_CLIENT_ID || String(info.email_verified) !== 'true' || !info.email) {
+    return { success: false, message: 'Cuenta de Google no autorizada' };
+  }
+
+  const email = String(info.email).trim().toLowerCase();
+  const users = getRowsAsObjects('Users');
+  const user = users.find(u => String(u.username || '').trim().toLowerCase() === email);
+
+  if (!user) {
+    return {
+      success: false,
+      message: 'El correo ' + email + ' no está registrado. Pide al administrador que lo agregue.'
+    };
+  }
+
+  return {
+    success: true,
+    data: {
+      user: {
+        id: user.id,
+        username: user.username,
+        role: user.role,
+        clientId: user.clientId || '',
+        name: user.name || info.name || user.username
+      }
+    }
+  };
 }
 
 function loginUser(credentials) {

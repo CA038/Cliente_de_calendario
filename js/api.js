@@ -53,6 +53,10 @@ const API = {
     return await this.gasPost('login', { username, password });
   },
 
+  async loginWithGoogle(idToken) {
+    return await this.gasPost('loginWithGoogle', { idToken });
+  },
+
   async getPosts(clientId = null) {
     const user = Auth.getCurrentUser() || {};
     const effectiveClient = user.role === 'client' ? user.clientId : clientId;
