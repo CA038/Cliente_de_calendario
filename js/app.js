@@ -124,6 +124,19 @@ function setupEventListeners() {
   // Login Form
   document.getElementById('loginForm').addEventListener('submit', handleLogin);
 
+  // Mostrar / Ocultar contraseña en login
+  const togglePasswordBtn = document.getElementById('togglePasswordBtn');
+  const passwordInput = document.getElementById('password');
+  if (togglePasswordBtn && passwordInput) {
+    togglePasswordBtn.addEventListener('click', () => {
+      const isHidden = passwordInput.type === 'password';
+      passwordInput.type = isHidden ? 'text' : 'password';
+      togglePasswordBtn.title = isHidden ? 'Ocultar contraseña' : 'Mostrar contraseña';
+      togglePasswordBtn.innerHTML = `<i data-lucide="${isHidden ? 'eye-off' : 'eye'}"></i>`;
+      if (window.lucide) window.lucide.createIcons();
+    });
+  }
+
   // Quick Demo Buttons
   document.querySelectorAll('.btn-demo').forEach(btn => {
     btn.addEventListener('click', () => {
