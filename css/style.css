@@ -488,7 +488,9 @@ body {
 .rejection-text { font-size: 0.88rem; color: #7f1d1d; font-style: italic; }
 .rejection-input-section { background: #fff; border: 1.5px solid var(--danger); padding: 12px; border-radius: var(--radius-md); margin-top: 12px; }
 .rejection-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
-.detail-footer { display: flex; gap: 10px; justify-content: flex-end; padding-top: 14px; border-top: 1px solid var(--border); }
+.detail-footer { display: flex; gap: 8px; justify-content: flex-end; align-items: center; flex-wrap: wrap; padding-top: 14px; border-top: 1px solid var(--border); }
+.detail-footer .btn { font-size: 0.78rem; padding: 8px 14px; white-space: nowrap; }
+.detail-footer .btn svg { width: 15px; height: 15px; }
 
 /* TABS Y TABLAS */
 .manage-tabs { display: flex; gap: 8px; border-bottom: 1px solid var(--border); margin-bottom: 18px; }
