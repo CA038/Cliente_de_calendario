@@ -10,8 +10,9 @@ function setupSheets() {
   const schemas = {
     'Posts': ['id', 'clientId', 'title', 'caption', 'mediaType', 'mediaUrls', 'scheduledDate', 'status', 'rejectionReason', 'createdAt'],
     'Users': ['id', 'username', 'password', 'role', 'clientId', 'name'],
-    'Clients': ['id', 'name', 'monthlyTarget', 'active'],
+    'Clients': ['id', 'name', 'monthlyTarget', 'active', 'videoTarget'],
     'Assignments': ['id', 'userId', 'clientId', 'taskNote', 'createdAt'],
+    'Notifications': ['id', 'clientId', 'clientName', 'postId', 'postTitle', 'status', 'reason', 'createdAt', 'read'],
     'Settings': ['key', 'value']
   };
 
@@ -28,7 +29,12 @@ function setupSheets() {
         sheet.appendRow(['usr_cli', 'cliente1', '123', 'client', 'cli_1', 'Cliente Demo']);
       }
       if (sheetName === 'Clients') {
-        sheet.appendRow(['cli_1', 'Adrian Reyes Creativo', 15, true]);
+        sheet.appendRow(['cli_1', 'Adrian Reyes Creativo', 15, true, 4]);
+      }
+    } else if (sheetName === 'Clients') {
+      const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+      if (headers.indexOf('videoTarget') === -1) {
+        sheet.getRange(1, sheet.getLastColumn() + 1).setValue('videoTarget');
       }
     }
   }
@@ -66,6 +72,9 @@ function doGet(e) {
         break;
       case 'getStats':
         result = { success: true, data: getMonthlyStats(e.parameter.clientId, e.parameter.yearMonth) };
+        break;
+      case 'getNotifications':
+        result = { success: true, data: getNotificationsForRequest(e.parameter) };
         break;
       default:
         result = { success: true, message: 'API Calendario de Post activa' };
@@ -135,6 +144,9 @@ function doPost(e) {
         break;
       case 'deleteAssignment':
         result = deleteAssignment(payload.data.id);
+        break;
+      case 'markNotificationsRead':
+        result = markNotificationsRead(payload.data);
         break;
       default:
         result = { success: false, message: 'Acción POST desconocida' };
@@ -241,6 +253,30 @@ function updatePostStatus(postId, status, reason = '') {
     if (String(data[i][0]) === String(postId)) {
       sheet.getRange(i + 1, 8).setValue(status); // Columna 8: status
       sheet.getRange(i + 1, 9).setValue(reason || ''); // Columna 9: rejectionReason
+
+      if (status === 'approved' || status === 'rejected') {
+        const clientId = data[i][1] || '';
+        const postTitle = data[i][2] || 'Post sin título';
+        const clients = getRowsAsObjects('Clients');
+        const client = clients.find(c => String(c.id) === String(clientId));
+        const clientName = client ? client.name : clientId;
+
+        const notifSheet = SPREADSHEET.getSheetByName('Notifications');
+        if (notifSheet) {
+          notifSheet.appendRow([
+            Utilities.getUuid(),
+            clientId,
+            clientName,
+            postId,
+            postTitle,
+            status,
+            reason || '',
+            new Date().toISOString(),
+            false
+          ]);
+        }
+      }
+
       return { success: true, message: 'Estado actualizado' };
     }
   }
@@ -263,7 +299,7 @@ function updateClientTarget(clientId, target) {
 function saveClient(client) {
   const sheet = SPREADSHEET.getSheetByName('Clients');
   const id = client.id || Utilities.getUuid();
-  sheet.appendRow([id, client.name, Number(client.monthlyTarget || 0), true]);
+  sheet.appendRow([id, client.name, Number(client.monthlyTarget || 0), true, Number(client.videoTarget || 0)]);
   return { success: true, id: id };
 }
 
@@ -276,6 +312,7 @@ function updateClient(client) {
       const rowNum = i + 1;
       sheet.getRange(rowNum, 2).setValue(client.name || data[i][1]);
       sheet.getRange(rowNum, 3).setValue(Number(client.monthlyTarget || 0));
+      sheet.getRange(rowNum, 5).setValue(Number(client.videoTarget || 0));
       return { success: true, message: 'Cliente actualizado' };
     }
   }
@@ -525,6 +562,7 @@ function getMonthlyStats(clientId, yearMonth) {
   const clients = getRowsAsObjects('Clients');
   const client = clients.find(c => String(c.id) === String(clientId));
   const target = client ? Number(client.monthlyTarget || 0) : 0;
+  const videoTarget = client ? Number(client.videoTarget || 0) : 0;
 
   const ym = yearMonth || new Date().toISOString().slice(0, 7);
   const posts = getRowsAsObjects('Posts', clientId);
@@ -534,16 +572,56 @@ function getMonthlyStats(clientId, yearMonth) {
   const pendingCount = monthPosts.filter(p => p.status === 'pending').length;
   const rejectedCount = monthPosts.filter(p => p.status === 'rejected').length;
   const totalScheduled = monthPosts.length;
-  const remainingPosts = Math.max(0, target - (approvedCount + pendingCount));
+
+  const activeItems = monthPosts.filter(p => p.status === 'approved' || p.status === 'pending');
+  const activePostsOnly = activeItems.filter(p => p.mediaType !== 'video').length;
+  const activeVideosOnly = activeItems.filter(p => p.mediaType === 'video').length;
+
+  const remainingPosts = Math.max(0, target - activePostsOnly);
+  const remainingVideos = Math.max(0, videoTarget - activeVideosOnly);
 
   return {
     monthlyTarget: target,
+    videoTarget: videoTarget,
     totalScheduled: totalScheduled,
     approvedCount: approvedCount,
     pendingCount: pendingCount,
     rejectedCount: rejectedCount,
-    remainingPosts: remainingPosts
+    remainingPosts: remainingPosts,
+    remainingVideos: remainingVideos
   };
+}
+
+function getNotificationsForRequest(params) {
+  const role = params.role || '';
+  if (role === 'client') return [];
+
+  let items = getRowsAsObjects('Notifications');
+  if (role === 'operator' && params.userId) {
+    const assignments = getRowsAsObjects('Assignments');
+    const allowed = {};
+    assignments.forEach(a => {
+      if (String(a.userId) === String(params.userId)) allowed[String(a.clientId)] = true;
+    });
+    items = items.filter(n => Boolean(allowed[String(n.clientId)]));
+  }
+
+  return items.reverse().slice(0, 30);
+}
+
+function markNotificationsRead(data) {
+  const sheet = SPREADSHEET.getSheetByName('Notifications');
+  if (!sheet) return { success: true };
+  const rows = sheet.getDataRange().getValues();
+  const ids = data && Array.isArray(data.ids) ? data.ids.map(String) : null;
+
+  for (let i = 1; i < rows.length; i++) {
+    const rowId = String(rows[i][0]);
+    if (!ids || ids.indexOf(rowId) !== -1) {
+      sheet.getRange(i + 1, 9).setValue(true);
+    }
+  }
+  return { success: true };
 }
 
 function uploadMediaToDrive(data) {

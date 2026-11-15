@@ -67,16 +67,19 @@ const Auth = {
     const clientBrandBadge = document.getElementById('clientBrandBadge');
     const editTargetBtn = document.getElementById('editTargetBtn');
     const adminActions = document.querySelectorAll('.admin-action');
+    const internalOnly = document.querySelectorAll('.internal-only');
 
     if (user.role === 'client') {
       // Cliente: solo ve su calendario y botones de aprobar/rechazar
       adminActions.forEach(el => el.style.display = 'none');
+      internalOnly.forEach(el => el.style.display = 'none');
       if (clientSelectorWrap) clientSelectorWrap.style.display = 'none';
       if (clientBrandBadge) clientBrandBadge.style.display = 'inline-flex';
       if (editTargetBtn) editTargetBtn.style.display = 'none';
     } else if (user.role === 'operator') {
       // Operario: puede crear posts y ver clientes, pero no crear clientes ni usuarios
       adminActions.forEach(el => el.style.display = 'none');
+      internalOnly.forEach(el => el.style.display = '');
       const newPostBtn = document.getElementById('newPostBtn');
       const sideNavNewPost = document.getElementById('sideNavNewPost');
       if (newPostBtn) newPostBtn.style.display = 'inline-flex';
@@ -87,6 +90,7 @@ const Auth = {
     } else {
       // Superadmin: acceso completo
       adminActions.forEach(el => el.style.display = '');
+      internalOnly.forEach(el => el.style.display = '');
       if (clientSelectorWrap) clientSelectorWrap.style.display = 'flex';
       if (clientBrandBadge) clientBrandBadge.style.display = 'none';
       if (editTargetBtn) editTargetBtn.style.display = 'inline-flex';

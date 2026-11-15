@@ -105,6 +105,7 @@ async function showAppScreen() {
   Auth.applyRolePermissions();
   await loadClients();
   await loadCalendarAndStats();
+  loadNotifications();
 }
 
 function switchManageTab(tabId) {
@@ -287,6 +288,29 @@ function setupEventListeners() {
   document.querySelectorAll('[data-close]').forEach(btn => {
     btn.addEventListener('click', () => closeModal(btn.dataset.close));
   });
+
+  // Campanita de notificaciones
+  const notifBellBtn = document.getElementById('notifBellBtn');
+  const notifDropdown = document.getElementById('notifDropdown');
+  const markNotifReadBtn = document.getElementById('markNotifReadBtn');
+  if (notifBellBtn && notifDropdown) {
+    notifBellBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isOpen = notifDropdown.style.display === 'flex';
+      notifDropdown.style.display = isOpen ? 'none' : 'flex';
+    });
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('#notifWrapper')) {
+        notifDropdown.style.display = 'none';
+      }
+    });
+  }
+  if (markNotifReadBtn) {
+    markNotifReadBtn.addEventListener('click', async () => {
+      await API.markNotificationsRead();
+      await loadNotifications();
+    });
+  }
 }
 
 async function handleLogin(e) {
@@ -481,8 +505,10 @@ async function loadCalendarAndStats() {
       const statsRes = await API.getStats(activeClient, yearMonth);
       if (statsRes.success && statsRes.data) {
         const s = statsRes.data;
-        document.getElementById('kpiTargetVal').textContent = s.monthlyTarget;
+        document.getElementById('kpiTargetVal').textContent = `${s.monthlyTarget} / ${s.videoTarget || 0}`;
         document.getElementById('kpiRemainingVal').textContent = s.remainingPosts;
+        const remVideosEl = document.getElementById('kpiRemainingVideosVal');
+        if (remVideosEl) remVideosEl.textContent = s.remainingVideos ?? 0;
         document.getElementById('kpiApprovedVal').textContent = s.approvedCount;
         document.getElementById('kpiScheduledVal').textContent = s.totalScheduled;
         document.getElementById('kpiRejectedVal').textContent = s.rejectedCount;
@@ -490,6 +516,77 @@ async function loadCalendarAndStats() {
     }
   } catch (err) {
     showToast(`Error de conexión al cargar calendario: ${err.message}`, 'error');
+  }
+}
+
+async function loadNotifications() {
+  const user = Auth.getCurrentUser();
+  if (!user || user.role === 'client') return;
+
+  try {
+    const res = await API.getNotifications();
+    if (!res.success) return;
+    renderNotifications(res.data || []);
+  } catch (err) {
+    // Silencioso si el script aún no tiene la acción getNotifications
+  }
+}
+
+function renderNotifications(items) {
+  const listEl = document.getElementById('notifList');
+  const badgeEl = document.getElementById('notifBadge');
+  if (!listEl || !badgeEl) return;
+
+  const unreadCount = items.filter(n => !n.read || n.read === 'false').length;
+  if (unreadCount > 0) {
+    badgeEl.textContent = unreadCount > 99 ? '99+' : String(unreadCount);
+    badgeEl.style.display = 'inline-flex';
+  } else {
+    badgeEl.style.display = 'none';
+  }
+
+  if (items.length === 0) {
+    listEl.innerHTML = '<div class="notif-empty">Sin notificaciones aún.</div>';
+    return;
+  }
+
+  listEl.innerHTML = '';
+  items.forEach(n => {
+    const isUnread = !n.read || n.read === 'false';
+    const isApproved = n.status === 'approved';
+    const item = document.createElement('div');
+    item.className = `notif-item ${isUnread ? 'unread' : ''}`;
+    item.innerHTML = `
+      <div class="notif-item-top">
+        <span class="notif-client">${escapeHtml(n.clientName || 'Cliente')}</span>
+        <span class="status-badge ${isApproved ? 'approved' : 'rejected'}">${isApproved ? 'Aprobado' : 'Rechazado'}</span>
+      </div>
+      <div class="notif-title">${escapeHtml(n.postTitle || 'Post')}</div>
+      ${n.reason ? `<div class="notif-reason">"${escapeHtml(n.reason)}"</div>` : ''}
+    `;
+    item.addEventListener('click', () => openNotificationTarget(n));
+    listEl.appendChild(item);
+  });
+}
+
+async function openNotificationTarget(notif) {
+  const dropdown = document.getElementById('notifDropdown');
+  if (dropdown) dropdown.style.display = 'none';
+
+  if (notif.id) {
+    API.markNotificationsRead([notif.id]).then(() => loadNotifications());
+  }
+
+  if (notif.clientId && String(activeClient) !== String(notif.clientId)) {
+    activeClient = notif.clientId;
+    const clientSelect = document.getElementById('clientSelect');
+    if (clientSelect) clientSelect.value = activeClient;
+    await loadCalendarAndStats();
+  }
+
+  const targetPost = currentPosts.find(p => String(p.id) === String(notif.postId));
+  if (targetPost) {
+    openPostDetail(targetPost);
   }
 }
 

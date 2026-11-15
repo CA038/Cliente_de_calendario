@@ -27,7 +27,7 @@ async function loadManageData() {
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td><strong>${escapeHtml(c.name)}</strong></td>
-        <td>${Number(c.monthlyTarget || 0)} posts</td>
+        <td>${Number(c.monthlyTarget || 0)} posts / ${Number(c.videoTarget || 0)} videos</td>
         <td>
           <div style="display:flex; gap:6px; flex-wrap:wrap;">
             <button type="button" class="btn btn-secondary btn-sm" onclick="editClient('${escapeHtml(c.id)}')">Editar</button>
@@ -164,6 +164,8 @@ window.editClient = (clientId) => {
   editingClientId = client.id;
   document.getElementById('newClientName').value = client.name || '';
   document.getElementById('newClientTarget').value = Number(client.monthlyTarget || 0);
+  const videoEl = document.getElementById('newClientVideoTarget');
+  if (videoEl) videoEl.value = Number(client.videoTarget || 0);
   const titleEl = document.getElementById('clientFormTitle');
   const labelEl = document.getElementById('clientSubmitLabel');
   const cancelBtn = document.getElementById('cancelEditClientBtn');
@@ -215,10 +217,12 @@ async function handleCreateClient(e) {
   try {
     const name = document.getElementById('newClientName').value.trim();
     const target = document.getElementById('newClientTarget').value;
+    const videoTargetEl = document.getElementById('newClientVideoTarget');
+    const videoTarget = videoTargetEl ? videoTargetEl.value : 0;
 
     const res = editingClientId
-      ? await API.updateClient({ id: editingClientId, name, monthlyTarget: target })
-      : await API.createClient({ name, monthlyTarget: target });
+      ? await API.updateClient({ id: editingClientId, name, monthlyTarget: target, videoTarget })
+      : await API.createClient({ name, monthlyTarget: target, videoTarget });
 
     if (res.success) {
       showToast(editingClientId ? 'Cliente actualizado correctamente.' : 'Cliente creado correctamente.', 'success');

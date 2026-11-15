@@ -79,7 +79,13 @@ class CalendarView {
 
   createDayCell(dayNum, isOtherMonth = false, isToday = false, posts = []) {
     const cell = document.createElement('div');
-    cell.className = `calendar-day-cell ${isOtherMonth ? 'other-month' : ''} ${isToday ? 'today' : ''}`;
+    let dayStatusClass = '';
+    if (!isOtherMonth && posts.length > 0) {
+      const hasRejected = posts.some(p => p.status === 'rejected');
+      const allApproved = posts.every(p => p.status === 'approved');
+      dayStatusClass = hasRejected ? 'day-status-rejected' : (allApproved ? 'day-status-approved' : 'day-status-pending');
+    }
+    cell.className = `calendar-day-cell ${isOtherMonth ? 'other-month' : ''} ${isToday ? 'today' : ''} ${dayStatusClass}`.trim();
 
     const header = document.createElement('div');
     header.className = 'day-header';

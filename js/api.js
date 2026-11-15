@@ -140,6 +140,18 @@ const API = {
     return await this.gasPost('deleteAssignment', { id: assignmentId });
   },
 
+  async getNotifications() {
+    const user = Auth.getCurrentUser() || {};
+    return await this.gasGet('getNotifications', {
+      role: user.role,
+      userId: user.id
+    });
+  },
+
+  async markNotificationsRead(ids = null) {
+    return await this.gasPost('markNotificationsRead', { ids });
+  },
+
   uploadMedia(file) {
     return new Promise((resolve, reject) => {
       const maxBytes = 20 * 1024 * 1024; // 20 MB
