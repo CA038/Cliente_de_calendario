@@ -1,30 +1,30 @@
 /* PREVIEW DE POST ESTILO RED SOCIAL (INSTAGRAM) */
 .detail-social-modal {
   position: relative;
-  max-width: 920px;
+  max-width: 980px;
   width: 95%;
   padding: 0;
   overflow: hidden;
 }
 .detail-social-close {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  z-index: 20;
-  background: rgba(255, 255, 255, 0.92);
-  border-radius: 50%;
   width: 32px;
   height: 32px;
+  border-radius: 50%;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  color: var(--text-muted);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.detail-social-close:hover {
+  background: var(--bg-main);
+  color: var(--dark);
 }
 .detail-social-layout {
   display: grid;
-  grid-template-columns: minmax(320px, 1.15fr) minmax(300px, 1fr);
-  min-height: 480px;
-  max-height: 86vh;
+  grid-template-columns: minmax(360px, 1.15fr) minmax(360px, 1fr);
+  min-height: 500px;
+  max-height: 85vh;
 }
 .detail-social-media-col {
   position: relative;
@@ -106,7 +106,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  padding: 14px 48px 14px 18px;
+  padding: 14px 16px;
   border-bottom: 1px solid var(--border);
 }
 .social-account-wrap {
@@ -114,6 +114,15 @@
   align-items: center;
   gap: 10px;
   min-width: 0;
+}
+.social-account-meta {
+  min-width: 0;
+}
+.social-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
 }
 .social-avatar {
   width: 36px;
@@ -132,7 +141,10 @@
   font-size: 0.9rem;
   font-weight: 700;
   color: var(--dark);
-  line-height: 1.2;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .social-post-header .detail-date {
   margin-left: 0;
@@ -143,9 +155,13 @@
   overflow-y: auto;
   flex: 1;
 }
-.social-post-scroll .detail-post-title {
-  font-size: 1.05rem;
-  margin: 0 0 8px;
+.social-ref-title {
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--text-light);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 10px;
 }
 .social-post-scroll .detail-post-caption {
   background: transparent;
@@ -153,7 +169,13 @@
   margin-bottom: 14px;
   white-space: pre-wrap;
   word-break: break-word;
-  font-size: 0.9rem;
+  font-size: 0.91rem;
+  line-height: 1.55;
+  color: var(--dark);
+}
+.social-hashtag {
+  color: #0284c7;
+  font-weight: 500;
 }
 .social-actions-bar {
   display: flex;
@@ -173,7 +195,16 @@
   height: 20px;
 }
 .detail-social-info-col .detail-footer {
-  padding: 12px 18px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.detail-social-info-col .detail-footer .btn {
+  padding: 8px 14px;
+  font-size: 0.8rem;
 }
 
 @media (max-width: 780px) {

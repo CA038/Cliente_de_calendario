@@ -3,6 +3,7 @@ let calendar;
 let activeClient = null;
 let currentSelectedPost = null;
 let editingPostId = null;
+let clientsById = {};
 
 document.addEventListener('DOMContentLoaded', () => {
   initApp();
@@ -365,8 +366,10 @@ async function loadClients() {
   userClientSelect.innerHTML = '<option value="">Sin cliente asignado (para admin/operario)</option>';
 
   const user = Auth.getCurrentUser();
+  clientsById = {};
 
   clients.forEach(client => {
+    clientsById[String(client.id)] = client.name;
     const opt = document.createElement('option');
     opt.value = client.id;
     opt.textContent = client.name;
@@ -604,9 +607,13 @@ async function openNotificationTarget(notif) {
 }
 
 function resolveClientNameForPost(post) {
+  const cId = String(post.clientId || activeClient || '');
+  if (cId && clientsById[cId]) {
+    return clientsById[cId];
+  }
   const clientSelect = document.getElementById('clientSelect');
-  if (clientSelect && post.clientId) {
-    const opt = Array.from(clientSelect.options).find(o => String(o.value) === String(post.clientId));
+  if (clientSelect && cId) {
+    const opt = Array.from(clientSelect.options).find(o => String(o.value) === cId);
     if (opt) return opt.textContent;
   }
   const brandBadge = document.getElementById('clientBrandName');
@@ -614,6 +621,11 @@ function resolveClientNameForPost(post) {
     return brandBadge.textContent;
   }
   return 'Cliente';
+}
+
+function formatCaptionWithHashtags(text) {
+  const safe = escapeHtml(text || '(Sin copy especificado)');
+  return safe.replace(/(#[A-Za-z0-9_áéíóúÁÉÍÓÚñÑ]+)/g, '<span class="social-hashtag">$1</span>');
 }
 
 function renderSocialMediaSlide(post, urls, index) {
@@ -658,7 +670,7 @@ function onPostClick(post) {
   if (avatarEl) avatarEl.textContent = brandName.trim().charAt(0).toUpperCase() || 'C';
 
   document.getElementById('detailTitle').textContent = post.title || '';
-  document.getElementById('detailCaption').textContent = post.caption || '(Sin copy especificado)';
+  document.getElementById('detailCaption').innerHTML = formatCaptionWithHashtags(post.caption);
   document.getElementById('detailDate').textContent = post.scheduledDate ? post.scheduledDate.replace('T', ' ') : '';
 
   // Badge de Estado

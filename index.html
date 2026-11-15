@@ -361,8 +361,6 @@
   <!-- MODAL: VER DETALLE / APROBAR O RECHAZAR POST (PREVIEW TIPO RED SOCIAL) -->
   <div id="detailModal" class="modal-overlay" style="display: none;">
     <div class="modal-card detail-card detail-social-modal">
-      <button type="button" class="modal-close detail-social-close" data-close="detailModal" aria-label="Cerrar"><i data-lucide="x"></i></button>
-
       <div class="detail-social-layout">
         <!-- Columna izquierda: Multimedia grande -->
         <div class="detail-social-media-col">
@@ -381,17 +379,20 @@
           <div class="social-post-header">
             <div class="social-account-wrap">
               <div id="detailBrandAvatar" class="social-avatar">A</div>
-              <div>
-                <div id="detailBrandName" class="social-brand-name">Marca</div>
+              <div class="social-account-meta">
+                <div id="detailBrandName" class="social-brand-name">Cliente</div>
                 <div id="detailDate" class="detail-date">5 Nov 2026, 15:00</div>
               </div>
             </div>
-            <span id="detailStatusBadge" class="status-badge">Pendiente</span>
+            <div class="social-header-right">
+              <span id="detailStatusBadge" class="status-badge">Pendiente</span>
+              <button type="button" class="modal-close detail-social-close" data-close="detailModal" aria-label="Cerrar"><i data-lucide="x"></i></button>
+            </div>
           </div>
 
           <div class="social-post-scroll">
-            <h3 id="detailTitle" class="detail-post-title">Título del Post</h3>
-            <p id="detailCaption" class="detail-post-caption">Copy del post...</p>
+            <div id="detailTitle" class="social-ref-title">Título del Post</div>
+            <div id="detailCaption" class="detail-post-caption">Copy del post...</div>
 
             <!-- Alerta de rechazo con retroalimentación del cliente -->
             <div id="detailRejectionBox" class="rejection-box" style="display: none;">
