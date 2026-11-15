@@ -603,50 +603,111 @@ async function openNotificationTarget(notif) {
   }
 }
 
+function resolveClientNameForPost(post) {
+  const clientSelect = document.getElementById('clientSelect');
+  if (clientSelect && post.clientId) {
+    const opt = Array.from(clientSelect.options).find(o => String(o.value) === String(post.clientId));
+    if (opt) return opt.textContent;
+  }
+  const brandBadge = document.getElementById('clientBrandName');
+  if (brandBadge && brandBadge.textContent && brandBadge.textContent !== 'Mi Calendario') {
+    return brandBadge.textContent;
+  }
+  return 'Cliente';
+}
+
+function renderSocialMediaSlide(post, urls, index) {
+  const mediaContainer = document.getElementById('detailMediaContainer');
+  if (!mediaContainer) return;
+  mediaContainer.innerHTML = '';
+
+  if (!urls || urls.length === 0) {
+    mediaContainer.innerHTML = '<span style="font-size: 0.9rem; color: #a1a1aa; padding: 24px; text-align: center;">Sin vista previa multimedia.</span>';
+    return;
+  }
+
+  const url = urls[index] || urls[0];
+  if (post.mediaType === 'video' || String(url).includes('drive.google.com/file/d/')) {
+    if (String(url).includes('drive.google.com/file/d/')) {
+      const iframe = document.createElement('iframe');
+      iframe.src = url.includes('/preview') ? url : url.replace(/\/view.*$/, '/preview');
+      iframe.allow = 'autoplay';
+      mediaContainer.appendChild(iframe);
+    } else {
+      const vid = document.createElement('video');
+      vid.src = url;
+      vid.controls = true;
+      mediaContainer.appendChild(vid);
+    }
+  } else {
+    const img = document.createElement('img');
+    img.referrerPolicy = 'no-referrer';
+    img.src = url;
+    img.alt = post.title || 'Post';
+    mediaContainer.appendChild(img);
+  }
+}
+
 function onPostClick(post) {
   currentSelectedPost = post;
-  
-  document.getElementById('detailTitle').textContent = post.title;
+
+  const brandName = resolveClientNameForPost(post);
+  const brandEl = document.getElementById('detailBrandName');
+  const avatarEl = document.getElementById('detailBrandAvatar');
+  if (brandEl) brandEl.textContent = brandName;
+  if (avatarEl) avatarEl.textContent = brandName.trim().charAt(0).toUpperCase() || 'C';
+
+  document.getElementById('detailTitle').textContent = post.title || '';
   document.getElementById('detailCaption').textContent = post.caption || '(Sin copy especificado)';
   document.getElementById('detailDate').textContent = post.scheduledDate ? post.scheduledDate.replace('T', ' ') : '';
-  
+
   // Badge de Estado
   const badge = document.getElementById('detailStatusBadge');
   badge.className = `status-badge ${post.status}`;
   badge.textContent = post.status === 'approved' ? 'Aprobado' : (post.status === 'rejected' ? 'Rechazado' : 'Pendiente');
 
-  // Media Preview
-  const mediaContainer = document.getElementById('detailMediaContainer');
-  mediaContainer.innerHTML = '';
-  if (post.mediaUrls && post.mediaUrls.length > 0) {
-    post.mediaUrls.forEach(url => {
-      if (post.mediaType === 'video' || String(url).includes('drive.google.com/file/d/')) {
-        if (String(url).includes('drive.google.com/file/d/')) {
-          const iframe = document.createElement('iframe');
-          iframe.className = 'detail-media-video';
-          iframe.src = url.includes('/preview') ? url : url.replace(/\/view.*$/, '/preview');
-          iframe.allow = 'autoplay';
-          iframe.style.border = 'none';
-          iframe.style.height = '200px';
-          mediaContainer.appendChild(iframe);
-        } else {
-          const vid = document.createElement('video');
-          vid.className = 'detail-media-video';
-          vid.src = url;
-          vid.controls = true;
-          mediaContainer.appendChild(vid);
-        }
-      } else {
-        const img = document.createElement('img');
-        img.className = 'detail-media-img';
-        img.referrerPolicy = 'no-referrer';
-        img.src = url;
-        img.alt = post.title;
-        mediaContainer.appendChild(img);
-      }
-    });
-  } else {
-    mediaContainer.innerHTML = '<span style="font-size: 0.85rem; color: #a1a1aa;">Sin vista previa de archivo multimedia.</span>';
+  // Media Preview con soporte de carrusel
+  const urls = Array.isArray(post.mediaUrls) ? post.mediaUrls : [];
+  let slideIdx = 0;
+  renderSocialMediaSlide(post, urls, slideIdx);
+
+  const prevBtn = document.getElementById('carouselPrevBtn');
+  const nextBtn = document.getElementById('carouselNextBtn');
+  const dotsWrap = document.getElementById('carouselDots');
+  const hasMultiple = urls.length > 1;
+
+  if (prevBtn && nextBtn && dotsWrap) {
+    prevBtn.style.display = hasMultiple ? 'inline-flex' : 'none';
+    nextBtn.style.display = hasMultiple ? 'inline-flex' : 'none';
+    dotsWrap.style.display = hasMultiple ? 'flex' : 'none';
+
+    const updateCarouselUI = () => {
+      renderSocialMediaSlide(post, urls, slideIdx);
+      Array.from(dotsWrap.children).forEach((d, idx) => {
+        d.classList.toggle('active', idx === slideIdx);
+      });
+    };
+
+    if (hasMultiple) {
+      dotsWrap.innerHTML = '';
+      urls.forEach((_, idx) => {
+        const dot = document.createElement('span');
+        dot.className = `carousel-dot ${idx === 0 ? 'active' : ''}`;
+        dot.addEventListener('click', () => {
+          slideIdx = idx;
+          updateCarouselUI();
+        });
+        dotsWrap.appendChild(dot);
+      });
+      prevBtn.onclick = () => {
+        slideIdx = (slideIdx - 1 + urls.length) % urls.length;
+        updateCarouselUI();
+      };
+      nextBtn.onclick = () => {
+        slideIdx = (slideIdx + 1) % urls.length;
+        updateCarouselUI();
+      };
+    }
   }
 
   // Retroalimentación de rechazo si existe
@@ -671,7 +732,10 @@ function onPostClick(post) {
   if (deleteBtn) deleteBtn.style.display = canEdit ? 'inline-flex' : 'none';
 
   openModal('detailModal');
+  if (window.lucide) window.lucide.createIcons();
 }
+
+const openPostDetail = onPostClick;
 
 async function handleUpdateStatus(status, rejectionReason = '') {
   if (!currentSelectedPost) return;
@@ -692,6 +756,8 @@ function openNewPostModal() {
   if (activeClient) {
     document.getElementById('postClient').value = activeClient;
   }
+  const timeInput = document.getElementById('postTime');
+  if (timeInput && !timeInput.value) timeInput.value = '12:00';
   document.getElementById('postModalTitle').textContent = 'Programar Nuevo Post';
   document.getElementById('postSubmitLabel').textContent = 'Programar Post';
   openModal('postModal');
@@ -703,7 +769,13 @@ function openEditPostModal(post) {
   document.getElementById('postTitle').value = post.title || '';
   document.getElementById('postCaption').value = post.caption || '';
   document.getElementById('postMediaType').value = post.mediaType || 'image';
-  document.getElementById('postDate').value = post.scheduledDate ? post.scheduledDate.slice(0, 16) : '';
+
+  const rawDate = String(post.scheduledDate || '');
+  const [datePart, timePart] = rawDate.split('T');
+  document.getElementById('postDate').value = datePart ? datePart.slice(0, 10) : '';
+  const timeInput = document.getElementById('postTime');
+  if (timeInput) timeInput.value = timePart ? timePart.slice(0, 5) : '12:00';
+
   document.getElementById('postMediaUrls').value = Array.isArray(post.mediaUrls) ? post.mediaUrls.join(', ') : '';
 
   document.getElementById('postModalTitle').textContent = 'Editar Post (Reenviar a Revisión)';
@@ -737,12 +809,15 @@ async function handleSavePost(e) {
     }
 
     if (submitLabel) submitLabel.textContent = 'Guardando post...';
+    const dateVal = document.getElementById('postDate').value;
+    const timeEl = document.getElementById('postTime');
+    const timeVal = timeEl && timeEl.value ? timeEl.value : '12:00';
     const postData = {
       clientId: document.getElementById('postClient').value,
       title: document.getElementById('postTitle').value.trim(),
       caption: document.getElementById('postCaption').value.trim(),
       mediaType: document.getElementById('postMediaType').value,
-      scheduledDate: document.getElementById('postDate').value,
+      scheduledDate: dateVal ? `${dateVal}T${timeVal}` : '',
       mediaUrls: urls
     };
 
