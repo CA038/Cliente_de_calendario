@@ -894,18 +894,44 @@ body {
     transition: left 0.25s ease;
   }
   .app-sidebar.open { left: 0; }
-  .app-main-content { width: 100%; padding: 16px; }
+  .app-main-content { width: 100%; max-width: 100%; padding: 14px; }
   .kpi-banner { grid-template-columns: repeat(2, 1fr); }
-  .calendar-section { overflow-x: auto; }
-  .calendar-weekdays, .calendar-grid { min-width: 720px; }
+  .calendar-section { padding: 14px; }
 }
 
 @media (max-width: 640px) {
   .login-card { padding: 26px 20px; }
-  .app-topbar { flex-wrap: wrap; gap: 10px; }
-  .topbar-left { flex-wrap: wrap; width: 100%; }
-  .kpi-banner { grid-template-columns: 1fr; }
+  .app-main-content { padding: 10px 10px 28px; }
+  .app-topbar { flex-direction: column; align-items: stretch; gap: 10px; padding: 12px; border-radius: var(--radius-lg); }
+  .topbar-left { flex-wrap: wrap; width: 100%; gap: 8px; }
+  .topbar-right { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; width: 100%; gap: 8px; }
+  .client-pill-wrapper { flex: 1; min-width: 0; }
+  .client-select { width: 100%; min-width: 0; }
+  .month-navigator { width: 100%; justify-content: space-between; }
+  .current-month-text { min-width: auto; font-size: 0.86rem; }
+  .view-btn { padding: 6px 10px; font-size: 0.76rem; }
+  .notif-dropdown { width: min(330px, calc(100vw - 24px)); right: auto; left: 0; }
+
+  .kpi-banner { grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 14px; }
+  .kpi-card { padding: 10px 12px; gap: 8px; }
+  .kpi-icon { width: 34px; height: 34px; flex-shrink: 0; }
+  .kpi-label { font-size: 0.72rem; }
+  .kpi-value { font-size: 1.08rem; }
+
+  .calendar-section { padding: 10px 6px; border-radius: var(--radius-lg); }
+  .calendar-weekdays { font-size: 0.66rem; margin-bottom: 6px; padding-bottom: 6px; }
+  .calendar-grid { gap: 4px; min-height: auto; }
+  .calendar-day-cell { min-height: 62px; padding: 4px; border-radius: 8px; }
+  .day-header { margin-bottom: 3px; }
+  .day-number { font-size: 0.72rem; }
+  .day-posts-list { gap: 3px; }
+  .post-mini-card { padding: 3px 4px; border-radius: 5px; }
+  .mini-card-top { margin-bottom: 1px; }
+  .mini-media-badge { font-size: 0.56rem; gap: 2px; }
+  .mini-media-badge svg { width: 9px; height: 9px; }
+  .mini-post-title { font-size: 0.62rem; }
+
   .form-row, .form-row-2, .form-row-3 { grid-template-columns: 1fr; }
   .detail-footer { flex-wrap: wrap; }
-  .toast-container { left: 16px; right: 16px; bottom: 16px; }
+  .toast-container { left: 12px; right: 12px; bottom: 12px; }
 }
